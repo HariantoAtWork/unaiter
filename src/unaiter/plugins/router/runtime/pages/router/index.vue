@@ -194,6 +194,11 @@ async function save() {
           </form>
         </UCard>
 
+        <RouterTryChat
+          :model-id="form.publicModelId"
+          :disabled="!form.enabled || !form.publicModelId.trim()"
+        />
+
         <UCard>
           <template #header>
             <h2 class="font-semibold text-highlighted">

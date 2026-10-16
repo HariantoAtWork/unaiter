@@ -32,6 +32,10 @@ Multi-step requests must use `stream: false` (or omit `stream`). `stream: true` 
 
 Specialists must be **enabled** catalogue models (`{providerSlug}/{modelId}`). Max **4** steps.
 
+## Admin UI
+
+**`/router`** saves classifier + specialists and includes a **Try chat** panel: `POST /v1/chat/completions` with `stream: false`, then shows the reply and headers `x-unaiter-route`, `x-unaiter-routed-model`, `x-unaiter-orchestrated`.
+
 ## Admin API
 
 | Method | Path | Notes |
