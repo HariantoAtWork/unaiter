@@ -26,6 +26,8 @@ POST /v1/chat/completions
 { "model": "ollama-cloud/gemma4:31b", "messages": […] }
 ```
 
+For automatic writing/code selection, use the [intent router](Router.md) public id (default `router/auto`) instead.
+
 Unaiter:
 
 1. Splits on the **first** `/` → provider slug + upstream model id  

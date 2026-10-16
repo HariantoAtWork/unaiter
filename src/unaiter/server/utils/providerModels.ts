@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { intentRouterModelListItem } from '../../plugins/router/runtime/server/utils/intentRoute'
 import { fetchOpenAiCompatibleModels } from './openaiCompatible'
 import { newId } from './id'
 import {
@@ -117,6 +118,11 @@ export function listEnabledOpenAiModels(event?: H3Event) {
         owned_by: provider.slug,
       })
     }
+  }
+
+  const routerModel = intentRouterModelListItem(event)
+  if (routerModel && !seen.has(routerModel.id)) {
+    data.push(routerModel)
   }
 
   data.sort((a, b) => a.id.localeCompare(b.id))

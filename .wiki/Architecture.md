@@ -32,8 +32,9 @@ unaiter/
 | `/login` | Sign in (auth layout) |
 | `/` | Overview dashboard |
 | `/providers` | CRUD for OpenAI-compatible providers, keys, and admin models |
-| `/v1/models` | OpenAI-compatible list of **enabled** catalogue models (`{slug}/{modelId}`) |
-| `/v1/chat/completions` | Proxies to the provider resolved from `{slug}/{modelId}` |
+| `/router` | Intent router admin (local Nuxt module under `plugins/router`) |
+| `/v1/models` | OpenAI-compatible list of **enabled** catalogue models (`{slug}/{modelId}`), plus `router/auto` when enabled |
+| `/v1/chat/completions` | Proxies to the provider resolved from `{slug}/{modelId}`; `router/auto` plans steps, then proxies or orchestrates |
 
 Global middleware `auth.global.ts` redirects unauthenticated users to `/login` (except `/login` and `/v1/*`).
 
@@ -45,6 +46,8 @@ Global middleware `auth.global.ts` redirects unauthenticated users to `/login` (
 | POST | `/api/auth/logout` | Clears session |
 | GET | `/api/auth/me` | Current user or `null` |
 | GET | `/api/overview` | Counts + provider summary |
+| GET | `/api/router/config` | Intent router settings |
+| PUT | `/api/router/config` | Update intent router settings |
 | GET | `/api/providers` | List (keys masked) |
 | POST | `/api/providers` | Create + bulk keys |
 | GET | `/api/providers/:id` | Single provider (keys masked) |

@@ -18,6 +18,12 @@ const items = computed<NavigationMenuItem[]>(() => [
     to: '/providers',
     active: route.path.startsWith('/providers'),
   },
+  {
+    label: 'Router',
+    icon: 'i-lucide-git-branch',
+    to: '/router',
+    active: route.path.startsWith('/router'),
+  },
 ])
 
 async function onLogout() {

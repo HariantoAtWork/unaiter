@@ -6,6 +6,7 @@ Runtime files live under **`dataRoot`** (Docker: `/var/lib/unaiter` → host `.d
 |------|---------|
 | `app.secret` | Server session seal secret (≥32 chars, mode `0600`) |
 | `providers.json` | Providers + API keys (mode `0600`) |
+| `router.json` | Intent router config (classifier + writing/code specialists) |
 
 Helpers:
 

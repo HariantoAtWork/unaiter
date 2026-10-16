@@ -9,6 +9,7 @@ Unaiter is a Nuxt 4 admin app for managing **OpenAI-compatible providers** and A
 - [Auth and crypto (server-only)](Auth-and-Crypto.md)
 - [Dashboard](Dashboard.md)
 - [Providers](Providers.md)
+- [Router](Router.md)
 - [Docker and `dc.sh`](Docker-and-dc-sh.md)
 - [Environment](Environment.md)
 - [Data storage](Data-Storage.md)
