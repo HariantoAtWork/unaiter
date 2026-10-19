@@ -20,13 +20,30 @@ function modelHasGenerate(model: ProviderModelPublic) {
   return (model.tasks ?? []).includes('generate')
 }
 
-/** Generate hats first; everything else after (still listed, not selectable). */
+/** Unlabelled models (no tasks yet) stay selectable so chat can probe them. */
+function modelIsChatSelectable(model: ProviderModelPublic) {
+  const tasks = model.tasks ?? []
+  if (tasks.length === 0) {
+    return true
+  }
+  return modelHasGenerate(model)
+}
+
+/** Selectable first (generate, then unlabelled); non-chat hats last. */
 function sortChatModels(list: ProviderModelPublic[]) {
   return [...list].sort((a, b) => {
-    const aGen = modelHasGenerate(a) ? 0 : 1
-    const bGen = modelHasGenerate(b) ? 0 : 1
-    if (aGen !== bGen) {
-      return aGen - bGen
+    const rank = (model: ProviderModelPublic) => {
+      if (modelHasGenerate(model)) {
+        return 0
+      }
+      if ((model.tasks ?? []).length === 0) {
+        return 1
+      }
+      return 2
+    }
+    const byRank = rank(a) - rank(b)
+    if (byRank !== 0) {
+      return byRank
     }
     const enabled = Number(b.enabled) - Number(a.enabled)
     if (enabled !== 0) {
@@ -37,7 +54,7 @@ function sortChatModels(list: ProviderModelPublic[]) {
 }
 
 function firstSelectableModel(list: ProviderModelPublic[]) {
-  return list.find(modelHasGenerate) ?? null
+  return list.find(modelIsChatSelectable) ?? null
 }
 
 type ChatRole = 'user' | 'assistant' | 'system'
@@ -90,7 +107,7 @@ const filteredModels = computed(() =>
 const modelItems = computed((): ChatModelMenuItem[] =>
   sortChatModels(filteredModels.value).map((model) => {
     const tasks = model.tasks ?? []
-    const selectable = modelHasGenerate(model)
+    const selectable = modelIsChatSelectable(model)
     return {
       label: tasks.length
         ? `${model.modelId} · ${tasks.join(', ')}`
@@ -123,7 +140,7 @@ const canSend = computed(() => {
     return false
   }
   const model = models.value.find(item => item.modelId === id)
-  return !!model && modelHasGenerate(model)
+  return !!model && modelIsChatSelectable(model)
 })
 
 /** Only the last assistant message is ever mid-stream; render Markdown once done. */
@@ -161,7 +178,7 @@ watch(
 watch(statusFilter, () => {
   const visible = sortChatModels(filteredModels.value)
   const current = selectedModelId()
-  if (current && visible.some(model => model.modelId === current && modelHasGenerate(model))) {
+  if (current && visible.some(model => model.modelId === current && modelIsChatSelectable(model))) {
     return
   }
   selectedModel.value = firstSelectableModel(visible)?.modelId ?? null
