@@ -26,6 +26,19 @@ POST /v1/chat/completions
 { "model": "ollama-cloud/gemma4:31b", "messages": […] }
 ```
 
+Every other OpenAI-compatible `/v1/*` path the upstream offers works the same way (catch-all; only `/v1/models` is Unaiter-owned):
+
+```http
+POST /v1/embeddings
+{ "model": "openai/text-embedding-3-small", "input": "hello" }
+
+POST /v1/moderations
+{ "model": "openai/omni-moderation-latest", "input": "…" }
+
+POST /v1/rerank
+{ "model": "provider/rerank-model", "query": "…", "documents": […] }
+```
+
 For automatic writing/code selection, use the [intent router](Router.md) public id (default `router/auto`) instead.
 
 Unaiter:
@@ -33,7 +46,7 @@ Unaiter:
 1. Splits on the **first** `/` → provider slug + upstream model id  
 2. Checks the model exists and is **enabled**  
 3. Picks an API key via the provider’s key method (**Roundabout** = first in the ordered list)  
-4. Forwards to `{baseUrl}/chat/completions` with the **unprefixed** model id  
+4. Forwards to `{baseUrl}/{path}` (e.g. `chat/completions`, `embeddings`) with the **unprefixed** model id  
 5. On **429** / **402** (or network failure), marks that key exhausted (moves to end) and retries with the next key
 
 Drawer actions:

@@ -35,6 +35,7 @@ unaiter/
 | `/router` | Intent router admin (local Nuxt module under `plugins/router`) |
 | `/v1/models` | OpenAI-compatible list of **enabled** catalogue models (`{slug}/{modelId}`), plus `router/auto` when enabled |
 | `/v1/chat/completions` | Proxies to the provider resolved from `{slug}/{modelId}`; `router/auto` plans steps, then proxies or orchestrates |
+| `/v1/*` | Passthrough relay for every OpenAI-compatible path the upstream exposes, routed by `{slug}/{modelId}` — except `/v1/models` (catalogue) |
 
 Global middleware `auth.global.ts` redirects unauthenticated users to `/login` (except `/login` and `/v1/*`).
 
@@ -58,6 +59,7 @@ Global middleware `auth.global.ts` redirects unauthenticated users to `/login` (
 | POST | `/api/providers/:id/keys/:keyId/exhaust` | Apply key-list method (Roundabout → move to end) |
 | GET | `/v1/models` | Public OpenAI-compatible enabled models (`{slug}/{modelId}`) |
 | POST | `/v1/chat/completions` | Route by `{slug}/{modelId}`; Roundabout keys; exhaust on 429/402 |
+| * | `/v1/*` | Passthrough to `{baseUrl}/{path}` (same model routing + key rotation); only `/v1/models` is reserved |
 | GET | `/api/providers/:id/models` | Admin model catalogue (includes disabled) |
 | POST | `/api/providers/:id/models` | Bulk-add model ids |
 | POST | `/api/providers/:id/models/fetch` | Retrieve from provider `GET /models` |
