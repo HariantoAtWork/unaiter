@@ -1,3 +1,10 @@
+import {
+  minimalProbeBody,
+  parseAdvertisedTask,
+  probeOrderForAdvertisedTask,
+  MODEL_TASK_SPECS,
+  type ModelTask,
+} from './modelTasks'
 import { resolveAdapter } from './providerAdapters'
 
 export type AdapterAwareOptions = {
@@ -164,27 +171,38 @@ export async function fetchOpenAiCompatibleModels(
   return models
 }
 
-/** Lightweight probe: tiny chat completion. Failures mean the model is not usable. */
-export async function testOpenAiCompatibleModel(
+export type ModelFormatTestResult = {
+  tasks: ModelTask[]
+  ok: boolean
+}
+
+const PATH_BY_TASK = new Map(MODEL_TASK_SPECS.map(spec => [spec.task, spec.path]))
+
+async function probeOneFormat(
+  task: ModelTask,
   baseUrl: string,
   apiKey: string,
   modelId: string,
-  signal?: AbortSignal,
+  cancel?: AbortSignal,
   options?: AdapterAwareOptions,
 ): Promise<boolean> {
   const adapter = resolveFor(baseUrl, options)
-  const url = `${adapter.resolveBaseUrl(baseUrl)}/chat/completions`
+  const path = PATH_BY_TASK.get(task)
+  if (!path) {
+    return false
+  }
+
+  const url = `${adapter.resolveBaseUrl(baseUrl)}/${path}`
+  const key = adapter.resolveApiKey(apiKey, modelId)
+  let body = minimalProbeBody(task, modelId)
+  if (task === 'generate') {
+    body = adapter.prepareChatBody(body).body
+  }
+
   const timeout = AbortSignal.timeout(30_000)
-  const combined = signal ? AbortSignal.any([timeout, signal]) : timeout
+  const combined = cancel ? AbortSignal.any([timeout, cancel]) : timeout
 
   try {
-    const baseBody: Record<string, unknown> = {
-      model: modelId,
-      max_tokens: 1,
-      messages: [{ role: 'user', content: 'ping' }],
-    }
-    const { body } = adapter.prepareChatBody(baseBody)
-    const key = adapter.resolveApiKey(apiKey, modelId)
     const response = await fetch(url, {
       method: 'POST',
       headers: adapter.upstreamHeaders(key, { modelId }),
@@ -194,9 +212,58 @@ export async function testOpenAiCompatibleModel(
     return response.ok
   }
   catch (err) {
-    if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
+    // Only surface cancel; per-format timeouts count as a failed probe.
+    if (cancel?.aborted) {
       throw err
     }
     return false
   }
+}
+
+/**
+ * Probe each API format to learn which hats the model wears.
+ * Advertised `providerMeta.task` runs first (`chat` alias → `generate`); missing/null → start with `generate`.
+ */
+export async function testOpenAiCompatibleModelFormats(
+  baseUrl: string,
+  apiKey: string,
+  modelId: string,
+  providerMeta?: Record<string, unknown> | null,
+  signal?: AbortSignal,
+  options?: AdapterAwareOptions,
+): Promise<ModelFormatTestResult> {
+  const advertised = parseAdvertisedTask(providerMeta?.task)
+  const order = probeOrderForAdvertisedTask(advertised)
+  const passed: ModelTask[] = []
+
+  for (const task of order) {
+    if (signal?.aborted) {
+      break
+    }
+    const ok = await probeOneFormat(task, baseUrl, apiKey, modelId, signal, options)
+    if (ok) {
+      passed.push(task)
+    }
+  }
+
+  return { tasks: passed, ok: passed.length > 0 }
+}
+
+/** @deprecated Prefer testOpenAiCompatibleModelFormats — chat-only probe. */
+export async function testOpenAiCompatibleModel(
+  baseUrl: string,
+  apiKey: string,
+  modelId: string,
+  signal?: AbortSignal,
+  options?: AdapterAwareOptions,
+): Promise<boolean> {
+  const result = await testOpenAiCompatibleModelFormats(
+    baseUrl,
+    apiKey,
+    modelId,
+    null,
+    signal,
+    options,
+  )
+  return result.ok
 }

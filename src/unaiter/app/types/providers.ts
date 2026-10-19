@@ -7,10 +7,18 @@ export type ProviderKeyPublic = {
   createdAt: string
 }
 
+export type ModelTask =
+  | 'generate'
+  | 'embedding'
+  | 'score'
+  | 'moderation'
+  | 'decision'
+
 export type ProviderModelPublic = {
   id: string
   modelId: string
   contextLength: number | null
+  tasks: ModelTask[]
   enabled: boolean
   source: 'manual' | 'fetched'
   lastTestOk: boolean | null

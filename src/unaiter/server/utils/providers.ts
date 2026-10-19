@@ -13,6 +13,7 @@ import {
   normalizeProviderKeyMethod,
   type ProviderKeyMethod,
 } from './providerKeyMethods'
+import { normalizeModelTasks, type ModelTask } from './modelTasks'
 import { slugify } from './slug'
 
 export type ProviderKey = {
@@ -30,6 +31,8 @@ export type ProviderModel = {
   contextLength?: number | null
   /** Raw provider `/models` entry, kept verbatim (not exposed on the API). */
   providerMeta?: Record<string, unknown>
+  /** Verified API hats from the last per-format test (empty until tested). */
+  tasks: ModelTask[]
   enabled: boolean
   source: 'manual' | 'fetched'
   lastTestOk: boolean | null
@@ -101,12 +104,16 @@ function storePath(event?: H3Event) {
 }
 
 function normalizeProvider(raw: Provider): Provider {
+  const models = Array.isArray(raw.models) ? raw.models : []
   return {
     ...raw,
     adapterId: normalizeAdapterId(raw.adapterId, raw.baseUrl),
     keyMethod: normalizeProviderKeyMethod(raw.keyMethod),
     keys: Array.isArray(raw.keys) ? raw.keys : [],
-    models: Array.isArray(raw.models) ? raw.models : [],
+    models: models.map(model => ({
+      ...model,
+      tasks: normalizeModelTasks(model.tasks),
+    })),
   }
 }
 
@@ -598,6 +605,7 @@ function cloneImportedProvider(source: Partial<Provider>, now: string): Provider
         ? model.contextLength
         : null,
       providerMeta: isPlainObject(model?.providerMeta) ? model.providerMeta : undefined,
+      tasks: normalizeModelTasks(model?.tasks),
       enabled: model?.enabled !== false,
       source: model?.source === 'manual' ? 'manual' as const : 'fetched' as const,
       lastTestOk: typeof model?.lastTestOk === 'boolean' ? model.lastTestOk : null,

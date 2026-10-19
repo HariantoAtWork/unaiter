@@ -55,10 +55,24 @@ Drawer actions:
 |--------|-----------|
 | Retrieve from `/models` | `GET {baseUrl}/models` with a provider key; merges new ids (`source: fetched`) |
 | Add in bulk | One model id per line; duplicates skipped (`source: manual`) |
-| Test models | Probes enabled models via a tiny `chat/completions`; failures are tagged **disabled** |
+| Test models | Probes each API format (see task hats below); labels passing hats on the model; **enabled** if any format works, **disabled** if none |
 | Enable toggle | Per-row switch |
 | Copy | Copies routable id `{providerSlug}/{modelId}` to the clipboard |
 | Filter | All / Enabled / Disabled tabs + search by model id |
+
+### Task hats (per-format tests)
+
+Verified hats are stored on each model as `tasks` and shown in the drawer. Probe order uses the provider’s advertised `task` from `/models` when present; if `task` is missing or null, testing starts with **`generate`** (chat completions). Remaining formats are still tried so multi-hat models are discovered, except **`decision`**, which is only probed when the provider advertises `task: "decision"` (avoids false positives on gateways that accept `/systemone` for any model).
+
+| task | Upstream path |
+|------|---------------|
+| `generate` | `chat/completions` |
+| `embedding` | `embeddings` |
+| `score` | `rerank` |
+| `moderation` | `moderations` |
+| `decision` | `systemone` (probe: `{ state: {}, questions: { probe: { type: "noul", instructions: "ping" } } }`) |
+
+`GET /v1/models` includes verified `tasks` on catalogue entries when the last test found at least one hat.
 
 ## Key list method
 

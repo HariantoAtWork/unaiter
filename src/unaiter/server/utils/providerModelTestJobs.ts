@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
-import { testOpenAiCompatibleModel } from './openaiCompatible'
+import { testOpenAiCompatibleModelFormats } from './openaiCompatible'
+import type { ModelTask } from './modelTasks'
 import {
   toPublicModel,
 } from './providerModels'
@@ -259,14 +260,18 @@ async function runJob(job: InternalJob) {
 
       const apiKey = firstUsableKey(providerForKey)
       let ok = false
+      let tasks: ModelTask[] = []
       try {
-        ok = await testOpenAiCompatibleModel(
+        const result = await testOpenAiCompatibleModelFormats(
           providerForKey.baseUrl,
           apiKey,
           target.modelId,
+          target.providerMeta,
           job.abortController.signal,
           { adapterId: providerForKey.adapterId },
         )
+        ok = result.ok
+        tasks = result.tasks
       }
       catch (err) {
         if (job.cancelRequested || job.abortController.signal.aborted) {
@@ -276,6 +281,7 @@ async function runJob(job: InternalJob) {
           break
         }
         ok = false
+        tasks = []
       }
 
       if (job.cancelRequested || job.abortController.signal.aborted) {
@@ -290,6 +296,7 @@ async function runJob(job: InternalJob) {
         continue
       }
 
+      model.tasks = tasks
       model.lastTestOk = ok
       model.testedAt = now
       job.tested += 1

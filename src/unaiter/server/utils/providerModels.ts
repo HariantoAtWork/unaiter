@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { intentRouterModelListItem } from '../../plugins/router/runtime/server/utils/intentRoute'
 import { fetchOpenAiCompatibleModels } from './openaiCompatible'
 import { newId } from './id'
+import type { ModelTask } from './modelTasks'
 import {
   findProviderOrThrow,
   readStore,
@@ -15,6 +16,7 @@ export type ProviderModelPublic = {
   id: string
   modelId: string
   contextLength: number | null
+  tasks: ModelTask[]
   enabled: boolean
   source: 'manual' | 'fetched'
   lastTestOk: boolean | null
@@ -29,6 +31,7 @@ export function toPublicModel(model: ProviderModel): ProviderModelPublic {
     contextLength: typeof model.contextLength === 'number' && model.contextLength > 0
       ? model.contextLength
       : null,
+    tasks: Array.isArray(model.tasks) ? [...model.tasks] : [],
     enabled: model.enabled,
     source: model.source,
     lastTestOk: model.lastTestOk,
@@ -116,6 +119,8 @@ export function listEnabledOpenAiModels(event?: H3Event) {
         object: 'model',
         created: Number.isFinite(createdMs) ? Math.floor(createdMs / 1000) : 0,
         owned_by: provider.slug,
+        // Verified hats from per-format tests (overrides opaque upstream `tasks` if any).
+        ...(model.tasks?.length ? { tasks: model.tasks } : {}),
       })
     }
   }
@@ -163,6 +168,7 @@ export function addProviderModelsBulk(
     provider.models.push({
       id: newId(),
       modelId,
+      tasks: [],
       enabled: true,
       source: 'manual',
       lastTestOk: null,
@@ -218,6 +224,7 @@ export async function fetchProviderModels(providerId: string, event?: H3Event) {
       modelId: remote.id,
       contextLength: remote.contextLength,
       providerMeta: remote.raw,
+      tasks: [],
       enabled: true,
       source: 'fetched',
       lastTestOk: null,

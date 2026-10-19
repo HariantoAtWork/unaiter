@@ -537,6 +537,18 @@ async function copyModelId(model: ProviderModelPublic) {
               >
                 {{ formatContextLength(model.contextLength) }} ctx
               </p>
+              <div
+                v-if="model.tasks?.length"
+                class="mt-1 flex flex-wrap gap-1"
+              >
+                <span
+                  v-for="task in model.tasks"
+                  :key="task"
+                  class="rounded bg-elevated px-1.5 py-0.5 font-mono text-[0.65rem] text-muted"
+                >
+                  {{ task }}
+                </span>
+              </div>
               <p class="text-xs text-muted">
                 {{ model.source }}
                 <template v-if="model.lastTestOk !== null">
