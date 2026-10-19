@@ -416,13 +416,14 @@ async function removeKey(provider: ProviderPublic, keyId: string) {
                     @click="openKeysDrawer(provider)"
                   />
                   <UButton
-                    :label="`${provider.modelCount ?? 0} models`"
                     color="neutral"
                     variant="soft"
                     size="sm"
                     trailing-icon="i-lucide-panel-right"
                     @click="openModelsDrawer(provider)"
-                  />
+                  >
+                    <span><span class="text-success">{{ provider.enabledModelCount ?? 0 }}</span>/{{ provider.modelCount ?? 0 }} models</span>
+                  </UButton>
                   <UDropdownMenu :items="providerActionItems(provider)">
                     <UButton
                       icon="i-lucide-ellipsis"
