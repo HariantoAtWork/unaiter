@@ -1,6 +1,44 @@
 <script setup lang="ts">
-import type { ModelStatusFilter, ProviderModelPublic, ProviderPublic } from '~/types/providers'
+import type {
+  ModelStatusFilter,
+  ModelTask,
+  ProviderModelPublic,
+  ProviderPublic,
+} from '~/types/providers'
 import { apiErrorMessage } from '~/utils/apiError'
+
+type ChatModelMenuItem = {
+  label: string
+  value: string
+  modelId: string
+  tasks: ModelTask[]
+  /** Non-generate hats stay visible but cannot be selected for chat. */
+  disabled?: boolean
+}
+
+function modelHasGenerate(model: ProviderModelPublic) {
+  return (model.tasks ?? []).includes('generate')
+}
+
+/** Generate hats first; everything else after (still listed, not selectable). */
+function sortChatModels(list: ProviderModelPublic[]) {
+  return [...list].sort((a, b) => {
+    const aGen = modelHasGenerate(a) ? 0 : 1
+    const bGen = modelHasGenerate(b) ? 0 : 1
+    if (aGen !== bGen) {
+      return aGen - bGen
+    }
+    const enabled = Number(b.enabled) - Number(a.enabled)
+    if (enabled !== 0) {
+      return enabled
+    }
+    return a.modelId.localeCompare(b.modelId)
+  })
+}
+
+function firstSelectableModel(list: ProviderModelPublic[]) {
+  return list.find(modelHasGenerate) ?? null
+}
 
 type ChatRole = 'user' | 'assistant' | 'system'
 
@@ -49,11 +87,20 @@ const filteredModels = computed(() =>
   }),
 )
 
-const modelItems = computed(() =>
-  filteredModels.value.map(model => ({
-    label: model.modelId,
-    value: model.modelId,
-  })),
+const modelItems = computed((): ChatModelMenuItem[] =>
+  sortChatModels(filteredModels.value).map((model) => {
+    const tasks = model.tasks ?? []
+    const selectable = modelHasGenerate(model)
+    return {
+      label: tasks.length
+        ? `${model.modelId} · ${tasks.join(', ')}`
+        : model.modelId,
+      value: model.modelId,
+      modelId: model.modelId,
+      tasks,
+      disabled: !selectable,
+    }
+  }),
 )
 
 const hasModels = computed(() => models.value.length > 0)
@@ -70,9 +117,14 @@ function selectedModelId(): string | null {
   return typeof raw.value === 'string' ? raw.value : null
 }
 
-const canSend = computed(() =>
-  !!selectedModelId() && !!prompt.value.trim() && !sending.value,
-)
+const canSend = computed(() => {
+  const id = selectedModelId()
+  if (!id || !prompt.value.trim() || sending.value) {
+    return false
+  }
+  const model = models.value.find(item => item.modelId === id)
+  return !!model && modelHasGenerate(model)
+})
 
 /** Only the last assistant message is ever mid-stream; render Markdown once done. */
 function isStreamingMessage(index: number) {
@@ -105,15 +157,14 @@ watch(
   () => scrollToBottom(),
 )
 
-// When the filter hides the current selection, move to the first visible model.
+// When the filter hides the current selection, move to the first chat-capable model.
 watch(statusFilter, () => {
-  const visible = filteredModels.value
+  const visible = sortChatModels(filteredModels.value)
   const current = selectedModelId()
-  if (current && visible.some(model => model.modelId === current)) {
+  if (current && visible.some(model => model.modelId === current && modelHasGenerate(model))) {
     return
   }
-  const first = visible[0]
-  selectedModel.value = first ? first.modelId : null
+  selectedModel.value = firstSelectableModel(visible)?.modelId ?? null
 })
 
 async function loadModels(providerId: string) {
@@ -125,14 +176,16 @@ async function loadModels(providerId: string) {
     const result = await $fetch<{ models: ProviderModelPublic[] }>(
       `/api/providers/${providerId}/models`,
     )
-    // Enabled models first so the auto-select lands on a usable model.
-    const sorted = [...result.models].sort((a, b) => Number(b.enabled) - Number(a.enabled))
+    // Generate hats first; auto-select the first chat-capable model.
+    const sorted = sortChatModels(result.models)
     models.value = sorted
     statusFilter.value = sorted.some(model => model.enabled) ? 'enabled' : 'all'
-    const first = sorted[0]
-    if (first) {
-      selectedModel.value = first.modelId
-    }
+    const first = firstSelectableModel(sortChatModels(
+      statusFilter.value === 'enabled'
+        ? sorted.filter(model => model.enabled)
+        : sorted,
+    ))
+    selectedModel.value = first?.modelId ?? null
   }
   catch (err: unknown) {
     toast.add({
@@ -354,7 +407,30 @@ function toggleReasoning(message: ChatMessage) {
           :search-input="{ placeholder: 'Search models...' }"
           :disabled="sending"
           class="w-full"
-        />
+        >
+          <template #item="{ item }">
+            <div
+              class="flex w-full min-w-0 items-center gap-2"
+              :class="(item as ChatModelMenuItem).disabled ? 'opacity-50' : ''"
+            >
+              <span class="min-w-0 flex-1 truncate font-mono text-sm">
+                {{ (item as ChatModelMenuItem).modelId }}
+              </span>
+              <div
+                v-if="(item as ChatModelMenuItem).tasks.length"
+                class="flex shrink-0 flex-wrap justify-end gap-1"
+              >
+                <span
+                  v-for="task in (item as ChatModelMenuItem).tasks"
+                  :key="task"
+                  class="rounded bg-elevated px-1.5 py-0.5 font-mono text-[0.65rem] text-muted"
+                >
+                  {{ task }}
+                </span>
+              </div>
+            </div>
+          </template>
+        </USelectMenu>
 
         <div
           ref="scrollRef"

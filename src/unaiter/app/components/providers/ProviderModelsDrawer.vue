@@ -527,28 +527,30 @@ async function copyModelId(model: ProviderModelPublic) {
             :key="model.id"
             class="flex items-center justify-between gap-3 px-3 py-2 text-sm"
           >
-            <div class="min-w-0">
-              <p class="font-mono text-highlighted truncate">
-                {{ publicModelId(model) }}
-              </p>
+            <div class="min-w-0 flex-1">
+              <div class="flex min-w-0 items-center gap-2">
+                <p class="min-w-0 flex-1 font-mono text-highlighted truncate">
+                  {{ publicModelId(model) }}
+                </p>
+                <div
+                  v-if="model.tasks?.length"
+                  class="flex shrink-0 flex-wrap justify-end gap-1"
+                >
+                  <span
+                    v-for="task in model.tasks"
+                    :key="task"
+                    class="rounded bg-elevated px-1.5 py-0.5 font-mono text-[0.65rem] text-muted"
+                  >
+                    {{ task }}
+                  </span>
+                </div>
+              </div>
               <p
                 v-if="model.contextLength"
                 class="text-xs text-muted"
               >
                 {{ formatContextLength(model.contextLength) }} ctx
               </p>
-              <div
-                v-if="model.tasks?.length"
-                class="mt-1 flex flex-wrap gap-1"
-              >
-                <span
-                  v-for="task in model.tasks"
-                  :key="task"
-                  class="rounded bg-elevated px-1.5 py-0.5 font-mono text-[0.65rem] text-muted"
-                >
-                  {{ task }}
-                </span>
-              </div>
               <p class="text-xs text-muted">
                 {{ model.source }}
                 <template v-if="model.lastTestOk !== null">
