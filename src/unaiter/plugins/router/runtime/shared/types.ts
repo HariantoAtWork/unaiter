@@ -20,3 +20,31 @@ export type IntentRouterConfig = {
 export type IntentRouterPublic = IntentRouterConfig & {
   updatedAt: string | null
 }
+
+/** Named prefix that re-exports selected provider models. */
+export type CustomRoute = {
+  id: string
+  name: string
+  /** Path prefix, e.g. `cursor` → public id `cursor/{provider}/{model}`. */
+  slug: string
+  /** Attached public provider model ids (`{providerSlug}/{modelId}`). */
+  modelIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type CustomRoutePublic = CustomRoute & {
+  /** Attached model ids (including ones deleted from providers). */
+  modelCount: number
+  /** Attached ids that still exist on a provider and are enabled. */
+  enabledModelCount: number
+}
+
+export type CatalogueModel = {
+  id: string
+  enabled: boolean
+  providerName: string
+  providerSlug: string
+}
+
+export type ModelStatusFilter = 'all' | 'enabled' | 'disabled'

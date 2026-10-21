@@ -24,6 +24,12 @@ const items = computed<NavigationMenuItem[]>(() => [
     to: '/router',
     active: route.path.startsWith('/router'),
   },
+  {
+    label: 'Auto',
+    icon: 'i-lucide-sparkles',
+    to: '/auto',
+    active: route.path.startsWith('/auto'),
+  },
 ])
 
 async function onLogout() {

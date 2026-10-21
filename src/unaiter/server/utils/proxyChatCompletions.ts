@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { unwrapCustomRouteModelId } from '../../plugins/router/runtime/server/utils/customRoutes'
 import { prepareIntentRouterRequest } from '../../plugins/router/runtime/server/utils/intentRoute'
 import { resolveAdapter } from './providerAdapters'
 import {
@@ -41,15 +42,16 @@ export async function proxyChatCompletions(event: H3Event, options: ProxyChatCom
   }
 
   const body = prepared.body
-  const publicModelId = typeof body?.model === 'string' ? body.model : ''
+  const requestedModelId = typeof body?.model === 'string' ? body.model : ''
 
-  if (!publicModelId) {
+  if (!requestedModelId) {
     throw createError({
       statusCode: 400,
       statusMessage: 'model is required',
     })
   }
 
+  const publicModelId = unwrapCustomRouteModelId(requestedModelId, event)
   const routed = resolveRoutedModel(publicModelId, event, options.allowDisabled === true)
   const triedKeyIds = new Set<string>()
   // Local providers may have zero keys; still allow a single no-auth attempt.

@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { unwrapCustomRouteModelId } from '../../plugins/router/runtime/server/utils/customRoutes'
 import { resolveAdapter } from './providerAdapters'
 import {
   markKeyExhausted,
@@ -71,7 +72,10 @@ export async function proxyOpenAiPassthrough(event: H3Event) {
     })
   }
 
-  const routed = resolveRoutedModel(publicModelId, event)
+  const routed = resolveRoutedModel(
+    unwrapCustomRouteModelId(publicModelId, event),
+    event,
+  )
   const triedKeyIds = new Set<string>()
   const maxAttempts = Math.max(1, routed.provider.keys.length)
   const adapter = resolveAdapter({
