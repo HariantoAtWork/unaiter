@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { unwrapCustomRouteModelId } from '../../plugins/router/runtime/server/utils/customRoutes'
 import { prepareIntentRouterRequest } from '../../plugins/router/runtime/server/utils/intentRoute'
+import { applyAdapterClientResponse } from './providerAdapters/clientResponse'
 import { resolveAdapter } from './providerAdapters'
 import {
   markKeyExhausted,
@@ -8,19 +9,6 @@ import {
   reloadProvider,
   resolveRoutedModel,
 } from './routeModel'
-
-const HOP_BY_HOP = new Set([
-  'connection',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'te',
-  'trailers',
-  'transfer-encoding',
-  'upgrade',
-  'content-encoding',
-  'content-length',
-])
 
 function isExhaustedStatus(status: number) {
   return status === 429 || status === 402
@@ -120,18 +108,12 @@ export async function proxyChatCompletions(event: H3Event, options: ProxyChatCom
       return aggregated.payload
     }
 
-    setResponseStatus(event, response.status)
-    response.headers.forEach((value, name) => {
-      if (!HOP_BY_HOP.has(name.toLowerCase())) {
-        setHeader(event, name, value)
-      }
-    })
-
-    if (!response.body) {
+    const { body: streamBody } = applyAdapterClientResponse(event, adapter, response)
+    if (!streamBody) {
       return await response.text()
     }
 
-    return sendStream(event, response.body)
+    return sendStream(event, streamBody)
   }
 
   throw createError({

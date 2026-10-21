@@ -1,3 +1,4 @@
+import { basetenAdapter } from './baseten'
 import { defaultAdapter, DEFAULT_ADAPTER_ID } from './default'
 import { opencodeAdapter } from './opencode'
 import type {
@@ -16,6 +17,7 @@ export function registerAdapter(adapter: ProviderAdapter) {
 // (duplicated barrel exports from index.ts are ignored in favour of this module).
 registerAdapter(defaultAdapter)
 registerAdapter(opencodeAdapter)
+registerAdapter(basetenAdapter)
 
 export function getAdapter(id: string): ProviderAdapter | undefined {
   return adapters.get(id)
@@ -37,8 +39,8 @@ export function listAdaptersPublic(): AdapterPublic[] {
 }
 
 /**
- * Prefer explicit adapterId; else first adapter whose match(baseUrl) hits;
- * else default.
+ * Resolve by explicit adapterId only. Specialists are opt-in via the provider
+ * form / preset `adapterId` — base URL never auto-selects an adapter.
  */
 export function resolveAdapter(input: ResolveAdapterInput = {}): ProviderAdapter {
   const id = typeof input.adapterId === 'string' ? input.adapterId.trim() : ''
@@ -49,36 +51,18 @@ export function resolveAdapter(input: ResolveAdapterInput = {}): ProviderAdapter
     }
   }
 
-  const baseUrl = typeof input.baseUrl === 'string' ? input.baseUrl.trim() : ''
-  if (baseUrl) {
-    for (const adapter of adapters.values()) {
-      if (adapter.id === DEFAULT_ADAPTER_ID) {
-        continue
-      }
-      if (adapter.match?.(baseUrl)) {
-        return adapter
-      }
-    }
-  }
-
   return adapters.get(DEFAULT_ADAPTER_ID) || defaultAdapter
 }
 
-/** Normalise / migrate a stored adapterId (unknown → default; empty + URL hint). */
+/** Normalise a stored adapterId (unknown / empty → default). No URL auto-attach. */
 export function normalizeAdapterId(
   adapterId: unknown,
-  baseUrl?: string,
+  _baseUrl?: string,
 ): string {
   if (typeof adapterId === 'string' && adapterId.trim()) {
     const id = adapterId.trim()
     if (adapters.has(id)) {
       return id
-    }
-  }
-  if (baseUrl) {
-    const hinted = resolveAdapter({ baseUrl })
-    if (hinted.id !== DEFAULT_ADAPTER_ID) {
-      return hinted.id
     }
   }
   return DEFAULT_ADAPTER_ID

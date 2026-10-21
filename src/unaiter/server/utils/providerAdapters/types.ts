@@ -13,7 +13,10 @@ export type ProviderAdapter = {
   id: string
   /** Shown in Edit Provider. */
   label: string
-  /** Optional URL hint for migration / preset inference only. */
+  /**
+   * Optional URL hint for docs / tooling only. Not used to auto-select
+   * adapters — specialists are opt-in via explicit `adapterId`.
+   */
   match?: (baseUrl: string) => boolean
   resolveBaseUrl: (baseUrl: string) => string
   resolveApiKey: (apiKey: string, modelId: string) => string
@@ -30,6 +33,19 @@ export type ProviderAdapter = {
     response: Response,
     ctx: { forcedStream: boolean },
   ) => Promise<FinalizeChatResponseResult>
+  /**
+   * Optional: rewrite upstream response headers before they reach the client.
+   * Receives hop-by-hop headers already stripped.
+   */
+  sanitizeClientHeaders?: (headers: Headers) => Headers
+  /**
+   * Optional: rewrite the upstream response body (e.g. normalise SSE).
+   * `contentType` is the upstream Content-Type before sanitise.
+   */
+  transformUpstreamBody?: (
+    body: ReadableStream<Uint8Array>,
+    ctx: { contentType: string },
+  ) => ReadableStream<Uint8Array>
 }
 
 export type AdapterPublic = {

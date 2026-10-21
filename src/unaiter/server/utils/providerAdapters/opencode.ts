@@ -179,7 +179,7 @@ export function applyOpenCodeFreeTierBody(
 export const opencodeAdapter: ProviderAdapter = {
   id: OPENCODE_ADAPTER_ID,
   label: 'OpenCode',
-  match: matchOpenCodeBaseUrl,
+  // No `match` — must be selected explicitly (same as other specialist adapters).
   resolveBaseUrl: resolveOpenCodeBaseUrl,
   resolveApiKey: resolveOpenCodeApiKey,
   upstreamHeaders(apiKey, ctx) {

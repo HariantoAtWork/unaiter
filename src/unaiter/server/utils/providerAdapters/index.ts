@@ -1,5 +1,9 @@
 // Adapters register in registry.ts (Nitro may auto-import that file instead of this barrel).
 
+export {
+  BASETEN_ADAPTER_ID,
+  basetenAdapter,
+} from './baseten'
 export { DEFAULT_ADAPTER_ID, defaultAdapter } from './default'
 export {
   OPENCODE_ADAPTER_ID,
