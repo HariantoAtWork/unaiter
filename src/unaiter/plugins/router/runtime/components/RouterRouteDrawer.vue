@@ -89,6 +89,9 @@ watch(
     modelView.value = form.modelIds.length ? 'view' : 'operational'
     await loadCatalogue()
   },
+  // Required for the URL-restore path: the parent can mount this component already
+  // open, and a non-immediate watcher would never fire.
+  { immediate: true },
 )
 
 async function loadCatalogue() {

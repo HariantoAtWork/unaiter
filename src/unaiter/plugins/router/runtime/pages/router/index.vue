@@ -4,8 +4,12 @@ import { apiErrorMessage } from '~/utils/apiError'
 
 useHead({ title: 'Router · Una Iter' })
 
+/** Sentinel `?route=` value for the create drawer, which has no id yet. */
+const NEW_ROUTE = 'new'
+
 const toast = useToast()
 const confirm = useConfirmDialog()
+const currentRoute = useRoute()
 const { data, refresh, status } = useCustomRoutes()
 
 const drawerOpen = ref(false)
@@ -15,21 +19,71 @@ const deleting = ref(false)
 const routes = computed(() => data.value?.routes ?? [])
 const isEmpty = computed(() => status.value !== 'pending' && routes.value.length === 0)
 
+const routeParam = computed(() => {
+  const value = currentRoute.query.route
+  return typeof value === 'string' && value ? value : null
+})
+
+async function setRouteQuery(value: string | null) {
+  const query = { ...currentRoute.query }
+  if (value) {
+    query.route = value
+  }
+  else {
+    delete query.route
+  }
+  await navigateTo({ query }, { replace: true })
+}
+
 function openCreate() {
   editing.value = null
   drawerOpen.value = true
+  void setRouteQuery(NEW_ROUTE)
 }
 
 function openEdit(route: CustomRoutePublic) {
   editing.value = route
   drawerOpen.value = true
+  void setRouteQuery(route.id)
 }
 
 watch(drawerOpen, (value) => {
   if (!value) {
     editing.value = null
+    if (routeParam.value) {
+      void setRouteQuery(null)
+    }
   }
 })
+
+// Restore the drawer from the URL once the list resolves, so a refresh keeps it open.
+watch(
+  [routes, status],
+  ([list, fetchStatus]) => {
+    if (fetchStatus === 'pending' || drawerOpen.value) {
+      return
+    }
+    const id = routeParam.value
+    if (!id) {
+      return
+    }
+    if (id === NEW_ROUTE) {
+      editing.value = null
+      drawerOpen.value = true
+      return
+    }
+    const found = list.find(item => item.id === id)
+    if (found) {
+      editing.value = found
+      drawerOpen.value = true
+    }
+    else {
+      // Stale id (route deleted elsewhere) — drop it instead of lying about the target.
+      void setRouteQuery(null)
+    }
+  },
+  { immediate: true },
+)
 
 async function confirmDelete(route: CustomRoutePublic) {
   const ok = await confirm({
