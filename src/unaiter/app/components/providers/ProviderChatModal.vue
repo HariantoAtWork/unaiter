@@ -116,6 +116,7 @@ const modelItems = computed((): ChatModelMenuItem[] =>
       modelId: model.modelId,
       tasks,
       disabled: !selectable,
+      enabled: model.enabled,
     }
   }),
 )
@@ -444,6 +445,18 @@ function toggleReasoning(message: ChatMessage) {
                 >
                   {{ task }}
                 </span>
+              </div>
+              <div class="flex items-center gap-1 text-xs text-muted">
+                <UIcon
+                  v-if="(item as ChatModelMenuItem).enabled"
+                  name="i-lucide-circle-check"
+                  class="size-3 text-success"
+                />
+                <UIcon
+                  v-else
+                  name="i-lucide-circle-off"
+                  class="size-3 text-muted"
+                />
               </div>
             </div>
           </template>
