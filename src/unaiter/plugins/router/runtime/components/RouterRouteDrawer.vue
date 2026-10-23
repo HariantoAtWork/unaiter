@@ -6,6 +6,8 @@ import type {
 } from '#router-shared/types'
 import { apiErrorMessage } from '~/utils/apiError'
 
+type ModelView = 'operational' | 'view'
+
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -22,6 +24,7 @@ const catalogue = ref<CatalogueModel[]>([])
 const loadingCatalogue = ref(false)
 const search = ref('')
 const statusFilter = ref<ModelStatusFilter>('all')
+const modelView = ref<ModelView>('operational')
 
 const form = reactive({
   name: '',
@@ -57,6 +60,15 @@ const filteredCatalogue = computed(() => {
 
 const selectedSet = computed(() => new Set(form.modelIds))
 
+/** The route's published models: attached ids that still exist and are enabled. */
+const viewModels = computed(() =>
+  catalogue.value.filter(model => model.enabled && selectedSet.value.has(model.id)),
+)
+
+function toggleModelView() {
+  modelView.value = modelView.value === 'operational' ? 'view' : 'operational'
+}
+
 const canSave = computed(() =>
   !!form.name.trim()
   && !!form.slug.trim()
@@ -74,6 +86,7 @@ watch(
     form.modelIds = props.route ? [...props.route.modelIds] : []
     search.value = ''
     statusFilter.value = 'enabled'
+    modelView.value = form.modelIds.length ? 'view' : 'operational'
     await loadCatalogue()
   },
 )
@@ -103,6 +116,44 @@ function toggleModel(id: string) {
     return
   }
   form.modelIds.splice(index, 1)
+}
+
+/** Client-facing id for a route attachment, e.g. `cursor/halogen/gpt-4o`. */
+function publicModelId(model: CatalogueModel) {
+  const slug = form.slug.trim()
+  return slug ? `${slug}/${model.id}` : model.id
+}
+
+/** Click-through toast; only the close control receives pointer events.
+ * The Toaster merges its own `base` slot (`pointer-events-auto`) onto the same
+ * element as the toast `root`, so the plain utility loses the merge. The
+ * Tailwind v4 important modifier (`!`) is required to win. */
+const copyToastUi = {
+  root: 'pointer-events-none!',
+  close: 'pointer-events-auto!',
+}
+
+async function copyModelId(model: CatalogueModel) {
+  const value = publicModelId(model)
+  try {
+    await navigator.clipboard.writeText(value)
+    toast.add({
+      title: 'Copied',
+      description: value,
+      color: 'success',
+      ui: copyToastUi,
+      close: { class: 'pointer-events-auto' },
+    })
+  }
+  catch {
+    toast.add({
+      title: 'Could not copy',
+      description: value,
+      color: 'error',
+      ui: copyToastUi,
+      close: { class: 'pointer-events-auto' },
+    })
+  }
 }
 
 function onNameBlur() {
@@ -191,80 +242,139 @@ async function save() {
 
         <div class="space-y-3">
           <div class="flex items-center justify-between gap-2">
-            <p class="text-sm font-medium text-highlighted">
-              Models
-            </p>
-            <p class="text-xs text-muted">
-              {{ form.modelIds.length }} selected
-            </p>
-          </div>
-
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <UInput
-              v-model="search"
-              icon="i-lucide-search"
-              placeholder="Search models…"
-              class="w-full"
-              size="sm"
-            />
-            <UTabs
-              v-model="statusFilter"
-              :items="statusItems"
-              :content="false"
-              size="sm"
+            <div class="flex items-baseline gap-2">
+              <p class="text-sm font-medium text-highlighted">
+                Models
+              </p>
+              <p class="text-xs text-muted">
+                {{ form.modelIds.length }} selected
+              </p>
+            </div>
+            <UButton
+              :label="modelView === 'operational' ? 'Operational' : 'View'"
+              :icon="modelView === 'operational' ? 'i-lucide-sliders-horizontal' : 'i-lucide-eye'"
               color="neutral"
-              class="shrink-0"
+              variant="soft"
+              size="xs"
+              @click="toggleModelView"
             />
           </div>
 
-          <p
-            v-if="loadingCatalogue"
-            class="text-sm text-muted"
-          >
-            Loading models…
-          </p>
+          <template v-if="modelView === 'operational'">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <UInput
+                v-model="search"
+                icon="i-lucide-search"
+                placeholder="Search models…"
+                class="w-full"
+                size="sm"
+              />
+              <UTabs
+                v-model="statusFilter"
+                :items="statusItems"
+                :content="false"
+                size="sm"
+                color="neutral"
+                class="shrink-0"
+              />
+            </div>
 
-          <ul
-            v-else-if="filteredCatalogue.length"
-            class="router-route-drawer__model-list max-h-[50vh] overflow-y-auto rounded-md border border-default divide-y divide-default"
-          >
-            <li
-              v-for="model in filteredCatalogue"
-              :key="model.id"
-              class="router-route-drawer__model-item"
+            <p
+              v-if="loadingCatalogue"
+              class="text-sm text-muted"
             >
-              <button
-                type="button"
-                class="router-route-drawer__model-row hover:bg-elevated/50"
-                :title="`${model.providerName} · ${model.enabled ? 'enabled' : 'disabled'}`"
-                @click="toggleModel(model.id)"
-              >
-                <UCheckbox
-                  :model-value="selectedSet.has(model.id)"
-                  tabindex="-1"
-                  class="router-route-drawer__model-check pointer-events-none"
-                />
-                <span class="router-route-drawer__model-title text-highlighted">
-                  {{ model.id }}
-                </span>
-                <UIcon
-                  :name="model.enabled ? 'i-lucide-circle-check' : 'i-lucide-circle-off'"
-                  class="router-route-drawer__model-status"
-                  :class="model.enabled
-                    ? 'router-route-drawer__model-status--enabled text-success'
-                    : 'router-route-drawer__model-status--disabled text-muted'"
-                  :aria-label="model.enabled ? 'Enabled' : 'Disabled'"
-                />
-              </button>
-            </li>
-          </ul>
+              Loading models…
+            </p>
 
-          <p
-            v-else
-            class="text-sm text-muted"
-          >
-            No models match this filter.
-          </p>
+            <ul
+              v-else-if="filteredCatalogue.length"
+              class="router-route-drawer__model-list max-h-[50vh] overflow-y-auto rounded-md border border-default divide-y divide-default"
+            >
+              <li
+                v-for="model in filteredCatalogue"
+                :key="model.id"
+                class="router-route-drawer__model-item"
+              >
+                <button
+                  type="button"
+                  class="router-route-drawer__model-row hover:bg-elevated/50"
+                  :title="`${model.providerName} · ${model.enabled ? 'enabled' : 'disabled'}`"
+                  @click="toggleModel(model.id)"
+                >
+                  <UCheckbox
+                    :model-value="selectedSet.has(model.id)"
+                    tabindex="-1"
+                    class="router-route-drawer__model-check pointer-events-none"
+                  />
+                  <span class="router-route-drawer__model-title text-highlighted">
+                    {{ model.id }}
+                  </span>
+                  <UIcon
+                    :name="model.enabled ? 'i-lucide-circle-check' : 'i-lucide-circle-off'"
+                    class="router-route-drawer__model-status"
+                    :class="model.enabled
+                      ? 'router-route-drawer__model-status--enabled text-success'
+                      : 'router-route-drawer__model-status--disabled text-muted'"
+                    :aria-label="model.enabled ? 'Enabled' : 'Disabled'"
+                  />
+                </button>
+              </li>
+            </ul>
+
+            <p
+              v-else
+              class="text-sm text-muted"
+            >
+              No models match this filter.
+            </p>
+          </template>
+
+          <template v-else>
+            <p
+              v-if="loadingCatalogue"
+              class="text-sm text-muted"
+            >
+              Loading models…
+            </p>
+
+            <ul
+              v-else-if="viewModels.length"
+              class="router-route-drawer__model-list max-h-[50vh] overflow-y-auto rounded-md border border-default divide-y divide-default"
+            >
+              <li
+                v-for="model in viewModels"
+                :key="model.id"
+                class="router-route-drawer__model-item"
+              >
+                <div class="router-route-drawer__model-row">
+                  <span class="router-route-drawer__model-title text-highlighted">
+                    {{ model.id }}
+                  </span>
+                  <span class="shrink-0 text-xs text-muted">
+                    {{ model.providerName }}
+                  </span>
+                  <UButton
+                    icon="i-lucide-copy"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    class="shrink-0"
+                    :aria-label="`Copy ${publicModelId(model)}`"
+                    @click="copyModelId(model)"
+                  />
+                </div>
+              </li>
+            </ul>
+
+            <p
+              v-else
+              class="text-sm text-muted"
+            >
+              {{ form.modelIds.length
+                ? 'Selected models are all disabled on their provider.'
+                : 'No models selected yet. Switch to Operational to attach some.' }}
+            </p>
+          </template>
         </div>
 
         <div class="flex justify-end gap-2 pt-1">
