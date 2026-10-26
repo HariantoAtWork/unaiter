@@ -17,6 +17,9 @@ function resolveFor(baseUrl: string, options?: AdapterAwareOptions) {
 
 function modelsUrl(baseUrl: string, options?: AdapterAwareOptions) {
   const adapter = resolveFor(baseUrl, options)
+  if (adapter.resolveModelsUrl) {
+    return adapter.resolveModelsUrl(baseUrl)
+  }
   return `${adapter.resolveBaseUrl(baseUrl)}/models`
 }
 

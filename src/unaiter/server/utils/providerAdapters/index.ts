@@ -9,6 +9,7 @@ export {
   OPENCODE_ADAPTER_ID,
   matchOpenCodeBaseUrl,
   opencodeAdapter,
+  resolveOpenCodeModelsUrl,
 } from './opencode'
 export {
   getAdapter,

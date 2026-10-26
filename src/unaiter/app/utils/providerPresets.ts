@@ -168,7 +168,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     name: 'OpenCode',
-    baseUrl: 'https://opencode.ai/inference/v1',
+    baseUrl: 'https://opencode.ai/inference/openai/v1',
     adapterId: 'opencode',
     keyUrl: 'https://opencode.ai/console/keys',
     keyOptional: true,

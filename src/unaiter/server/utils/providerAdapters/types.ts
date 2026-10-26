@@ -19,6 +19,12 @@ export type ProviderAdapter = {
    */
   match?: (baseUrl: string) => boolean
   resolveBaseUrl: (baseUrl: string) => string
+  /**
+   * Optional: model-discovery URL. Some providers keep the model list on a
+   * different path than chat (OpenCode: `/inference/v1/models`).
+   * Defaults to `<resolveBaseUrl>/models`.
+   */
+  resolveModelsUrl?: (baseUrl: string) => string
   resolveApiKey: (apiKey: string, modelId: string) => string
   upstreamHeaders: (
     apiKey: string,
