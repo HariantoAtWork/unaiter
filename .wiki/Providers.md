@@ -106,6 +106,9 @@ cursor@harianto.dev|another-key
 - No `|` → API key only; **uuid v7** id is generated (`uuid` package, server-side).
 - `id|key` → use the given id (email or custom string ok).
 - Duplicate API keys (in the paste or already stored anywhere) are **skipped**.
+- Key **ids are unique per provider**: a taken id becomes `all-2`, `all-3`, …
+  Stores written before this rule are normalised on read, so ids stay unique
+  (delete / move / exhaust address keys by id).
 
 ## Public API shape
 

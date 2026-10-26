@@ -103,13 +103,62 @@ function storePath(event?: H3Event) {
   return join(ensureDataRoot(event), STORE_FILENAME)
 }
 
+/**
+ * Make `id` unique within `taken` (`all` → `all-2`, `all-3`, …).
+ *
+ * Key ids address keys everywhere (delete / move / exhaust / proxy rotation and
+ * the Vue list keys), so a repeated id makes the new entry shadow the old one
+ * instead of adding a key.
+ */
+function uniqueKeyId(id: string, taken: Set<string>) {
+  let candidate = id
+  for (let i = 2; taken.has(candidate); i += 1) {
+    candidate = `${id}-${i}`
+  }
+  taken.add(candidate)
+  return candidate
+}
+
+/**
+ * Normalise a provider's key list: drop unusable entries and make ids unique.
+ * Legacy stores could hold several keys under one id; reading normalises them
+ * so the next write persists the fix.
+ */
+function normalizeKeyList(rawKeys: unknown, now: string): ProviderKey[] {
+  if (!Array.isArray(rawKeys)) {
+    return []
+  }
+
+  const takenIds = new Set<string>()
+  const keys: ProviderKey[] = []
+
+  for (const raw of rawKeys as Partial<ProviderKey>[]) {
+    if (!raw || typeof raw !== 'object') {
+      continue
+    }
+    const key = String(raw.key ?? '')
+    if (!key) {
+      continue
+    }
+
+    keys.push({
+      id: uniqueKeyId(typeof raw.id === 'string' && raw.id ? raw.id : newId(), takenIds),
+      key,
+      valid: typeof raw.valid === 'boolean' ? raw.valid : null,
+      createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : now,
+    })
+  }
+
+  return keys
+}
+
 function normalizeProvider(raw: Provider): Provider {
   const models = Array.isArray(raw.models) ? raw.models : []
   return {
     ...raw,
     adapterId: normalizeAdapterId(raw.adapterId, raw.baseUrl),
     keyMethod: normalizeProviderKeyMethod(raw.keyMethod),
-    keys: Array.isArray(raw.keys) ? raw.keys : [],
+    keys: normalizeKeyList(raw.keys, raw.createdAt),
     models: models.map(model => ({
       ...model,
       tasks: normalizeModelTasks(model.tasks),
@@ -263,12 +312,17 @@ function assertBaseUrl(baseUrl: string) {
 /**
  * Parse bulk key lines:
  * - `sk-...` → generate uuid v7 id
- * - `my-id|sk-...` → use given id
+ * - `my-id|sk-...` → use given id (`my-id-2`, `my-id-3`, … when that id is taken)
  * Duplicate API keys (within the paste or already stored) are skipped.
+ *
+ * `knownKeys` holds the key values the provider already has; `takenIds` holds
+ * its existing key ids and is updated in place so repeated ids in one paste
+ * stay unique.
  */
 export function parseBulkKeys(
   raw: string,
   knownKeys: Set<string> = new Set(),
+  takenIds: Set<string> = new Set(),
 ): { entries: ParsedBulkKey[], skippedExisting: number } {
   const seenKeys = new Set<string>(knownKeys)
   const entries: ParsedBulkKey[] = []
@@ -303,7 +357,7 @@ export function parseBulkKeys(
     }
 
     seenKeys.add(key)
-    entries.push({ id, key })
+    entries.push({ id: uniqueKeyId(id, takenIds), key })
   }
 
   return { entries, skippedExisting }
@@ -476,7 +530,11 @@ export async function updateProvider(
       ...existingKeySet(providers, id),
       ...provider.keys.map(item => item.key),
     ])
-    const parsed = parseBulkKeys(keysRaw, known)
+    const parsed = parseBulkKeys(
+      keysRaw,
+      known,
+      new Set(provider.keys.map(item => item.id)),
+    )
     skippedExisting = parsed.skippedExisting
 
     const materialised = await materialiseKeys(
@@ -592,12 +650,7 @@ function cloneImportedProvider(source: Partial<Provider>, now: string): Provider
     type: 'openai-compatible',
     adapterId: normalizeAdapterId(source.adapterId, baseUrl),
     keyMethod: normalizeProviderKeyMethod(source.keyMethod),
-    keys: keys.map(key => ({
-      id: typeof key?.id === 'string' && key.id ? key.id : newId(),
-      key: String(key?.key ?? ''),
-      valid: typeof key?.valid === 'boolean' ? key.valid : null,
-      createdAt: typeof key?.createdAt === 'string' ? key.createdAt : now,
-    })),
+    keys: normalizeKeyList(keys, now),
     models: models.map(model => ({
       id: typeof model?.id === 'string' && model.id ? model.id : newId(),
       modelId: String(model?.modelId ?? ''),

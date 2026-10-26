@@ -14,13 +14,14 @@ export function deleteProviderKey(
 ) {
   const providers = readStore(event)
   const provider = findProviderOrThrow(providers, providerId)
-  const before = provider.keys.length
-  provider.keys = provider.keys.filter(item => item.id !== keyId)
+  const index = provider.keys.findIndex(item => item.id === keyId)
 
-  if (provider.keys.length === before) {
+  if (index === -1) {
     throw createError({ statusCode: 404, statusMessage: 'API key not found' })
   }
 
+  // Remove that one entry only (legacy stores could hold duplicates of an id).
+  provider.keys.splice(index, 1)
   provider.updatedAt = new Date().toISOString()
   writeStore(providers, event)
   return { provider: toPublicProvider(provider) }
