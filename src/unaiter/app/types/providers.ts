@@ -19,6 +19,8 @@ export type ProviderModelPublic = {
   modelId: string
   contextLength: number | null
   tasks: ModelTask[]
+  /** Verified tool calling; null until Test tools has run. */
+  tools: boolean | null
   enabled: boolean
   source: 'manual' | 'fetched'
   lastTestOk: boolean | null
@@ -57,9 +59,12 @@ export type ProviderModelTestSummary = {
   total: number
 }
 
+export type ProviderModelTestKind = 'formats' | 'tools'
+
 export type ProviderModelTestJobPublic = {
   id: number
   providerId: string
+  kind: ProviderModelTestKind
   status: 'queued' | 'running' | 'completed' | 'cancelled' | 'error'
   createdAt: string
   startedAt: string | null
@@ -83,6 +88,7 @@ export type ProviderModelTestQueueSnapshot = {
 export type ProviderModelTestStatus = {
   providerId: string
   jobId: number | null
+  kind: ProviderModelTestKind | null
   status: 'idle' | 'queued' | 'running' | 'completed' | 'cancelled' | 'error'
   total: number
   tested: number
@@ -102,6 +108,7 @@ export type ProviderModelTestEvent =
     type: 'started'
     jobId: number
     providerId: string
+    kind: ProviderModelTestKind
     total: number
   }
   | {

@@ -2,6 +2,7 @@ import type {
   ProviderModelPublic,
   ProviderModelTestEvent,
   ProviderModelTestJobPublic,
+  ProviderModelTestKind,
   ProviderModelTestQueueSnapshot,
   ProviderModelTestStatus,
 } from '~/types/providers'
@@ -9,6 +10,7 @@ import { apiErrorMessage } from '~/utils/apiError'
 
 type ClientJob = {
   jobId: number | null
+  kind: ProviderModelTestKind
   status: ProviderModelTestStatus['status']
   total: number
   tested: number
@@ -19,6 +21,10 @@ type ClientJob = {
   error: string | null
   models: ProviderModelPublic[] | null
   queue: ProviderModelTestQueueSnapshot | null
+}
+
+function jobLabel(kind: ProviderModelTestKind) {
+  return kind === 'tools' ? 'Tool test' : 'Model test'
 }
 
 type ModelUpdate = {
@@ -40,6 +46,7 @@ function emptyQueue(): ProviderModelTestQueueSnapshot {
 function emptyJob(): ClientJob {
   return {
     jobId: null,
+    kind: 'formats',
     status: 'idle',
     total: 0,
     tested: 0,
@@ -115,6 +122,7 @@ export function useProviderModelTests() {
   function applyPublicJob(providerId: string, job: ProviderModelTestJobPublic) {
     patchJob(providerId, {
       jobId: job.id,
+      kind: job.kind || 'formats',
       status: job.status,
       total: job.total,
       tested: job.tested,
@@ -140,6 +148,7 @@ export function useProviderModelTests() {
     if (event.type === 'started') {
       patchJob(providerId, {
         jobId: event.jobId,
+        kind: event.kind || 'formats',
         status: 'running',
         total: event.total,
         tested: 0,
@@ -178,6 +187,8 @@ export function useProviderModelTests() {
     }
 
     if (event.type === 'done') {
+      const kind = ensureJob(providerId).kind
+      const label = jobLabel(kind)
       patchJob(providerId, {
         jobId: event.jobId,
         status: event.status,
@@ -193,11 +204,14 @@ export function useProviderModelTests() {
       notifyModels(providerId, { models: event.models })
       notifyDone(providerId, event)
       closeSource(providerId)
+      const description = kind === 'tools'
+        ? `Tested ${event.summary.tested} of ${event.summary.total}: ${event.summary.passed} with tools, ${event.summary.failed} without.`
+        : `Tested ${event.summary.tested} of ${event.summary.total}: ${event.summary.passed} passed (${event.summary.enabled} enabled), ${event.summary.failed} failed (${event.summary.disabled} disabled).`
       toast.add({
         title: event.status === 'cancelled'
-          ? `Model test #${event.jobId} cancelled`
-          : `Model test #${event.jobId} finished`,
-        description: `Tested ${event.summary.tested} of ${event.summary.total}: ${event.summary.passed} passed (${event.summary.enabled} enabled), ${event.summary.failed} failed (${event.summary.disabled} disabled).`,
+          ? `${label} #${event.jobId} cancelled`
+          : `${label} #${event.jobId} finished`,
+        description,
         color: event.status === 'cancelled'
           ? 'neutral'
           : event.summary.failed ? 'warning' : 'success',
@@ -206,6 +220,7 @@ export function useProviderModelTests() {
     }
 
     if (event.type === 'error') {
+      const kind = ensureJob(providerId).kind
       patchJob(providerId, {
         jobId: event.jobId,
         status: 'error',
@@ -213,7 +228,7 @@ export function useProviderModelTests() {
       })
       closeSource(providerId)
       toast.add({
-        title: `Model test #${event.jobId} failed`,
+        title: `${jobLabel(kind)} #${event.jobId} failed`,
         description: event.message,
         color: 'error',
       })
@@ -260,6 +275,7 @@ export function useProviderModelTests() {
       )
       patchJob(providerId, {
         jobId: status.jobId,
+        kind: status.kind || 'formats',
         status: status.status,
         total: status.total,
         tested: status.tested,
@@ -285,7 +301,12 @@ export function useProviderModelTests() {
     }
   }
 
-  async function startTest(providerId: string, ids?: string[]) {
+  async function startTest(
+    providerId: string,
+    ids?: string[],
+    kind: ProviderModelTestKind = 'formats',
+  ) {
+    const label = jobLabel(kind)
     try {
       const result = await $fetch<{
         enqueued: boolean
@@ -294,7 +315,10 @@ export function useProviderModelTests() {
         queue: ProviderModelTestQueueSnapshot
       }>(`/api/providers/${providerId}/models/test`, {
         method: 'POST',
-        body: ids?.length ? { ids } : {},
+        body: {
+          kind,
+          ...(ids?.length ? { ids } : {}),
+        },
       })
       applyPublicJob(providerId, result.job)
       patchJob(providerId, {
@@ -305,7 +329,7 @@ export function useProviderModelTests() {
       subscribe(providerId)
       if (result.job.status === 'queued') {
         toast.add({
-          title: `Model test #${result.job.id} queued`,
+          title: `${label} #${result.job.id} queued`,
           description: 'Waiting for this provider’s current test to finish.',
           color: 'neutral',
         })
@@ -314,7 +338,7 @@ export function useProviderModelTests() {
     }
     catch (err: unknown) {
       toast.add({
-        title: 'Could not enqueue model test',
+        title: `Could not enqueue ${label.toLowerCase()}`,
         description: apiErrorMessage(err),
         color: 'error',
       })
@@ -334,10 +358,12 @@ export function useProviderModelTests() {
         body: jobId != null ? { jobId } : {},
       })
       if (result.cancelled) {
+        const kind = result.job?.kind || ensureJob(providerId).kind
+        const label = jobLabel(kind)
         toast.add({
           title: result.job
-            ? `Cancelling model test #${result.job.id}`
-            : 'Cancelling model test',
+            ? `Cancelling ${label.toLowerCase()} #${result.job.id}`
+            : `Cancelling ${label.toLowerCase()}`,
           description: 'Already-tested models keep their results.',
           color: 'neutral',
         })

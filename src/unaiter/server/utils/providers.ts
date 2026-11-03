@@ -33,6 +33,11 @@ export type ProviderModel = {
   providerMeta?: Record<string, unknown>
   /** Verified API hats from the last per-format test (empty until tested). */
   tasks: ModelTask[]
+  /**
+   * Verified tool-calling support from the last tools probe.
+   * `null` until Test tools has run.
+   */
+  tools: boolean | null
   enabled: boolean
   source: 'manual' | 'fetched'
   lastTestOk: boolean | null
@@ -162,6 +167,7 @@ function normalizeProvider(raw: Provider): Provider {
     models: models.map(model => ({
       ...model,
       tasks: normalizeModelTasks(model.tasks),
+      tools: typeof model.tools === 'boolean' ? model.tools : null,
     })),
   }
 }
@@ -659,6 +665,7 @@ function cloneImportedProvider(source: Partial<Provider>, now: string): Provider
         : null,
       providerMeta: isPlainObject(model?.providerMeta) ? model.providerMeta : undefined,
       tasks: normalizeModelTasks(model?.tasks),
+      tools: typeof model?.tools === 'boolean' ? model.tools : null,
       enabled: model?.enabled !== false,
       source: model?.source === 'manual' ? 'manual' as const : 'fetched' as const,
       lastTestOk: typeof model?.lastTestOk === 'boolean' ? model.lastTestOk : null,

@@ -270,3 +270,143 @@ export async function testOpenAiCompatibleModel(
   )
   return result.ok
 }
+
+const TOOLS_PROBE_NAME = 'ping'
+
+function toolsProbeBody(modelId: string): Record<string, unknown> {
+  return {
+    model: modelId,
+    max_tokens: 64,
+    messages: [{
+      role: 'user',
+      content: 'Call the ping tool with message hi. Do not reply with plain text.',
+    }],
+    tools: [{
+      type: 'function',
+      function: {
+        name: TOOLS_PROBE_NAME,
+        description: 'Unaiter tool-support probe',
+        parameters: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' },
+          },
+          required: ['message'],
+        },
+      },
+    }],
+    tool_choice: {
+      type: 'function',
+      function: { name: TOOLS_PROBE_NAME },
+    },
+  }
+}
+
+function messageHasToolCall(message: unknown): boolean {
+  if (!message || typeof message !== 'object') {
+    return false
+  }
+  const record = message as Record<string, unknown>
+  if (Array.isArray(record.tool_calls) && record.tool_calls.length > 0) {
+    return true
+  }
+  if (record.function_call && typeof record.function_call === 'object') {
+    return true
+  }
+  return false
+}
+
+function completionHasToolCalls(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') {
+    return false
+  }
+  const choices = (payload as { choices?: unknown[] }).choices
+  if (!Array.isArray(choices)) {
+    return false
+  }
+  for (const choice of choices) {
+    if (!choice || typeof choice !== 'object') {
+      continue
+    }
+    const row = choice as Record<string, unknown>
+    if (messageHasToolCall(row.message) || messageHasToolCall(row.delta)) {
+      return true
+    }
+    if (row.finish_reason === 'tool_calls' || row.finish_reason === 'function_call') {
+      return true
+    }
+  }
+  return false
+}
+
+/** Collect tool_calls from an OpenAI SSE chat stream (adapters that force stream). */
+function sseHasToolCalls(text: string): boolean {
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed.startsWith('data:')) {
+      continue
+    }
+    const data = trimmed.slice(5).trim()
+    if (!data || data === '[DONE]') {
+      continue
+    }
+    try {
+      if (completionHasToolCalls(JSON.parse(data))) {
+        return true
+      }
+    }
+    catch {
+      // ignore malformed SSE lines
+    }
+  }
+  return false
+}
+
+/**
+ * Probe whether a model accepts tools and returns a tool call when forced.
+ * Does not flip enablement — only reports capability.
+ */
+export async function testOpenAiCompatibleModelTools(
+  baseUrl: string,
+  apiKey: string,
+  modelId: string,
+  signal?: AbortSignal,
+  options?: AdapterAwareOptions,
+): Promise<boolean> {
+  const adapter = resolveFor(baseUrl, options)
+  const url = `${adapter.resolveBaseUrl(baseUrl)}/chat/completions`
+  const key = adapter.resolveApiKey(apiKey, modelId)
+  const prepared = adapter.prepareChatBody(toolsProbeBody(modelId))
+  const timeout = AbortSignal.timeout(45_000)
+  const combined = signal ? AbortSignal.any([timeout, signal]) : timeout
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: adapter.upstreamHeaders(key, { modelId }),
+      body: JSON.stringify(prepared.body),
+      signal: combined,
+    })
+    if (!response.ok) {
+      return false
+    }
+
+    const contentType = response.headers.get('content-type') || ''
+    if (prepared.forcedStream || contentType.includes('text/event-stream')) {
+      return sseHasToolCalls(await response.text())
+    }
+
+    try {
+      return completionHasToolCalls(await response.json())
+    }
+    catch {
+      return false
+    }
+  }
+  catch (err) {
+    if (signal?.aborted) {
+      throw err
+    }
+    return false
+  }
+}

@@ -14,9 +14,12 @@ export type ProviderModelTestSummary = {
   total: number
 }
 
+export type ProviderModelTestKind = 'formats' | 'tools'
+
 export type ProviderModelTestJobPublic = {
   id: number
   providerId: string
+  kind: ProviderModelTestKind
   status: 'queued' | 'running' | 'completed' | 'cancelled' | 'error'
   createdAt: string
   startedAt: string | null
@@ -46,6 +49,7 @@ export type ProviderModelTestEvent =
     type: 'started'
     jobId: number
     providerId: string
+    kind: ProviderModelTestKind
     total: number
   }
   | {
@@ -77,6 +81,7 @@ export type ProviderModelTestEvent =
 export type ProviderModelTestStatus = {
   providerId: string
   jobId: number | null
+  kind: ProviderModelTestKind | null
   status: 'idle' | 'queued' | 'running' | 'completed' | 'cancelled' | 'error'
   total: number
   tested: number
@@ -93,6 +98,7 @@ export type ProviderModelTestStatus = {
 export type InternalJob = {
   id: number
   providerId: string
+  kind: ProviderModelTestKind
   modelRowIds: string[]
   status: ProviderModelTestJobPublic['status']
   createdAt: string
@@ -143,6 +149,7 @@ export function toPublic(job: InternalJob): ProviderModelTestJobPublic {
   return {
     id: job.id,
     providerId: job.providerId,
+    kind: job.kind,
     status: job.status,
     createdAt: job.createdAt,
     startedAt: job.startedAt ?? null,
@@ -183,6 +190,7 @@ export function statusFromJob(providerId: string, job: InternalJob | null): Prov
     return {
       providerId,
       jobId: null,
+      kind: null,
       status: 'idle',
       total: 0,
       tested: 0,
@@ -199,6 +207,7 @@ export function statusFromJob(providerId: string, job: InternalJob | null): Prov
   return {
     providerId,
     jobId: job.id,
+    kind: job.kind,
     status: job.status,
     total: job.total,
     tested: job.tested,

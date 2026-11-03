@@ -18,6 +18,7 @@ export type ProviderModelPublic = {
   modelId: string
   contextLength: number | null
   tasks: ModelTask[]
+  tools: boolean | null
   enabled: boolean
   source: 'manual' | 'fetched'
   lastTestOk: boolean | null
@@ -33,6 +34,7 @@ export function toPublicModel(model: ProviderModel): ProviderModelPublic {
       ? model.contextLength
       : null,
     tasks: Array.isArray(model.tasks) ? [...model.tasks] : [],
+    tools: typeof model.tools === 'boolean' ? model.tools : null,
     enabled: model.enabled,
     source: model.source,
     lastTestOk: model.lastTestOk,
@@ -122,6 +124,7 @@ export function listEnabledOpenAiModels(event?: H3Event) {
         owned_by: provider.slug,
         // Verified hats from per-format tests (overrides opaque upstream `tasks` if any).
         ...(model.tasks?.length ? { tasks: model.tasks } : {}),
+        ...(typeof model.tools === 'boolean' ? { tools: model.tools } : {}),
       })
     }
   }
@@ -178,6 +181,7 @@ export function addProviderModelsBulk(
       id: newId(),
       modelId,
       tasks: [],
+      tools: null,
       enabled: true,
       source: 'manual',
       lastTestOk: null,
@@ -234,6 +238,7 @@ export async function fetchProviderModels(providerId: string, event?: H3Event) {
       contextLength: remote.contextLength,
       providerMeta: remote.raw,
       tasks: [],
+      tools: null,
       enabled: true,
       source: 'fetched',
       lastTestOk: null,

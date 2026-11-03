@@ -219,7 +219,14 @@ async function testModels() {
   if (!props.provider) {
     return
   }
-  await modelTests.startTest(props.provider.id)
+  await modelTests.startTest(props.provider.id, undefined, 'formats')
+}
+
+async function testTools() {
+  if (!props.provider) {
+    return
+  }
+  await modelTests.startTest(props.provider.id, undefined, 'tools')
 }
 
 async function cancelTestModels() {
@@ -380,16 +387,26 @@ async function copyModelId(model: ProviderModelPublic) {
             :disabled="loading || fetching || testing"
             @click="bulkOpen = !bulkOpen"
           />
-          <UButton
-            v-if="!testing"
-            label="Test models"
-            icon="i-lucide-flask-conical"
-            size="sm"
-            color="neutral"
-            variant="outline"
-            :disabled="loading || fetching || adding || !counts.all"
-            @click="testModels"
-          />
+          <template v-if="!testing">
+            <UButton
+              label="Test models"
+              icon="i-lucide-flask-conical"
+              size="sm"
+              color="neutral"
+              variant="outline"
+              :disabled="loading || fetching || adding || !counts.all"
+              @click="testModels"
+            />
+            <UButton
+              label="Test tools"
+              icon="i-lucide-wrench"
+              size="sm"
+              color="neutral"
+              variant="outline"
+              :disabled="loading || fetching || adding || !counts.all"
+              @click="testTools"
+            />
+          </template>
           <UButton
             v-else
             label="Cancel test"
@@ -406,10 +423,14 @@ async function copyModelId(model: ProviderModelPublic) {
           class="text-xs text-muted"
         >
           <template v-if="testJob.status === 'queued'">
-            Job #{{ testJob.jobId }} queued — waiting for this provider’s current test.
+            Job #{{ testJob.jobId }}
+            ({{ testJob.kind === 'tools' ? 'tools' : 'formats' }})
+            queued — waiting for this provider’s current test.
           </template>
           <template v-else>
-            Job #{{ testJob.jobId }} testing in the background…
+            Job #{{ testJob.jobId }}
+            {{ testJob.kind === 'tools' ? 'testing tools' : 'testing formats' }}
+            in the background…
             {{ testJob.tested }}/{{ testJob.total }}
             ({{ testJob.passed }} passed · {{ testJob.failed }} failed).
           </template>
@@ -533,7 +554,7 @@ async function copyModelId(model: ProviderModelPublic) {
                   {{ publicModelId(model) }}
                 </p>
                 <div
-                  v-if="model.tasks?.length"
+                  v-if="model.tasks?.length || model.tools === true"
                   class="flex shrink-0 flex-wrap justify-end gap-1"
                 >
                   <span
@@ -542,6 +563,12 @@ async function copyModelId(model: ProviderModelPublic) {
                     class="rounded bg-elevated px-1.5 py-0.5 font-mono text-[0.65rem] text-muted"
                   >
                     {{ task }}
+                  </span>
+                  <span
+                    v-if="model.tools === true"
+                    class="rounded bg-elevated px-1.5 py-0.5 font-mono text-[0.65rem] text-muted"
+                  >
+                    tools
                   </span>
                 </div>
               </div>
@@ -555,6 +582,9 @@ async function copyModelId(model: ProviderModelPublic) {
                 {{ model.source }}
                 <template v-if="model.lastTestOk !== null">
                   · last test {{ model.lastTestOk ? 'ok' : 'failed' }}
+                </template>
+                <template v-if="model.tools !== null">
+                  · tools {{ model.tools ? 'yes' : 'no' }}
                 </template>
               </p>
             </div>

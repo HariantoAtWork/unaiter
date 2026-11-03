@@ -56,6 +56,7 @@ Drawer actions:
 | Retrieve from `/models` | `GET {baseUrl}/models` with a provider key; merges new ids (`source: fetched`) |
 | Add in bulk | One model id per line; duplicates skipped (`source: manual`) |
 | Test models | Probes each API format (see task hats below); labels passing hats on the model; **enabled** if any format works, **disabled** if none |
+| Test tools | Background job (same SSE queue): forces a `ping` tool call via `chat/completions`; sets `tools: true/false` without changing enablement |
 | Enable toggle | Per-row switch |
 | Copy | Copies routable id `{providerSlug}/{modelId}` to the clipboard |
 | Filter | All / Enabled / Disabled tabs + search by model id |
@@ -72,7 +73,11 @@ Verified hats are stored on each model as `tasks` and shown in the drawer. Probe
 | `moderation` | `moderations` |
 | `decision` | `systemone` (probe: `{ state: {}, questions: { probe: { type: "noul", instructions: "ping" } } }`) |
 
-`GET /v1/models` includes verified `tasks` on catalogue entries when the last test found at least one hat.
+`GET /v1/models` includes verified `tasks` on catalogue entries when the last test found at least one hat, and `tools: true|false` after a tools probe.
+
+### Tool support
+
+**Test tools** sends a minimal OpenAI tools payload with `tool_choice` forced to a `ping` function. A model is labelled `tools` only when the upstream returns a tool call (JSON or SSE). Failures set `tools: false`; enablement is left alone.
 
 ## Key list method
 

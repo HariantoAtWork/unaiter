@@ -1,5 +1,8 @@
 import type { H3Event } from 'h3'
-import { testOpenAiCompatibleModelFormats } from './openaiCompatible'
+import {
+  testOpenAiCompatibleModelFormats,
+  testOpenAiCompatibleModelTools,
+} from './openaiCompatible'
 import type { ModelTask } from './modelTasks'
 import {
   toPublicModel,
@@ -29,10 +32,12 @@ import {
   pumping,
   type InternalJob,
   type ProviderModelTestEvent,
+  type ProviderModelTestKind,
 } from './providerModelTestQueue/state'
 export type {
   ProviderModelTestEvent,
   ProviderModelTestJobPublic,
+  ProviderModelTestKind,
   ProviderModelTestQueueSnapshot,
   ProviderModelTestStatus,
   ProviderModelTestSummary,
@@ -147,6 +152,7 @@ export function enqueueProviderModelTest(
   providerId: string,
   modelRowIds: string[] | undefined,
   event?: H3Event,
+  kind: ProviderModelTestKind = 'formats',
 ) {
   const providers = readStore(event)
   const provider = findProviderOrThrow(providers, providerId)
@@ -164,6 +170,7 @@ export function enqueueProviderModelTest(
   const job: InternalJob = {
     id: allocateJobId(),
     providerId,
+    kind,
     modelRowIds: targets.map(item => item.id),
     status: 'queued',
     createdAt: new Date().toISOString(),
@@ -241,6 +248,7 @@ async function runJob(job: InternalJob) {
     type: 'started',
     jobId: job.id,
     providerId: job.providerId,
+    kind: job.kind,
     total: job.total,
   })
   emitQueue()
@@ -262,16 +270,27 @@ async function runJob(job: InternalJob) {
       let ok = false
       let tasks: ModelTask[] = []
       try {
-        const result = await testOpenAiCompatibleModelFormats(
-          providerForKey.baseUrl,
-          apiKey,
-          target.modelId,
-          target.providerMeta,
-          job.abortController.signal,
-          { adapterId: providerForKey.adapterId },
-        )
-        ok = result.ok
-        tasks = result.tasks
+        if (job.kind === 'tools') {
+          ok = await testOpenAiCompatibleModelTools(
+            providerForKey.baseUrl,
+            apiKey,
+            target.modelId,
+            job.abortController.signal,
+            { adapterId: providerForKey.adapterId },
+          )
+        }
+        else {
+          const result = await testOpenAiCompatibleModelFormats(
+            providerForKey.baseUrl,
+            apiKey,
+            target.modelId,
+            target.providerMeta,
+            job.abortController.signal,
+            { adapterId: providerForKey.adapterId },
+          )
+          ok = result.ok
+          tasks = result.tasks
+        }
       }
       catch (err) {
         if (job.cancelRequested || job.abortController.signal.aborted) {
@@ -296,23 +315,35 @@ async function runJob(job: InternalJob) {
         continue
       }
 
-      model.tasks = tasks
-      model.lastTestOk = ok
-      model.testedAt = now
       job.tested += 1
 
-      if (ok) {
-        job.passed += 1
-        if (!model.enabled) {
-          model.enabled = true
-          job.enabled += 1
+      if (job.kind === 'tools') {
+        model.tools = ok
+        if (ok) {
+          job.passed += 1
+        }
+        else {
+          job.failed += 1
         }
       }
       else {
-        job.failed += 1
-        if (model.enabled) {
-          model.enabled = false
-          job.disabled += 1
+        model.tasks = tasks
+        model.lastTestOk = ok
+        model.testedAt = now
+
+        if (ok) {
+          job.passed += 1
+          if (!model.enabled) {
+            model.enabled = true
+            job.enabled += 1
+          }
+        }
+        else {
+          job.failed += 1
+          if (model.enabled) {
+            model.enabled = false
+            job.disabled += 1
+          }
         }
       }
 
