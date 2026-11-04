@@ -16,6 +16,8 @@ import {
 export type ProviderModelPublic = {
   id: string
   modelId: string
+  /** Human-readable label from upstream `/models` when present. */
+  displayName: string | null
   contextLength: number | null
   tasks: ModelTask[]
   tools: boolean | null
@@ -26,10 +28,20 @@ export type ProviderModelPublic = {
   createdAt: string
 }
 
+function displayNameFromMeta(meta: Record<string, unknown> | undefined): string | null {
+  const value = meta?.display_name ?? meta?.displayName ?? meta?.name
+  if (typeof value !== 'string') {
+    return null
+  }
+  const trimmed = value.trim()
+  return trimmed || null
+}
+
 export function toPublicModel(model: ProviderModel): ProviderModelPublic {
   return {
     id: model.id,
     modelId: model.modelId,
+    displayName: displayNameFromMeta(model.providerMeta),
     contextLength: typeof model.contextLength === 'number' && model.contextLength > 0
       ? model.contextLength
       : null,

@@ -56,6 +56,7 @@ const filteredModels = computed(() => {
       return true
     }
     return model.modelId.toLowerCase().includes(query)
+      || (model.displayName || '').toLowerCase().includes(query)
   })
 })
 
@@ -572,6 +573,12 @@ async function copyModelId(model: ProviderModelPublic) {
                   </span>
                 </div>
               </div>
+              <p
+                v-if="model.displayName"
+                class="text-xs text-muted truncate"
+              >
+                {{ model.displayName }}
+              </p>
               <p
                 v-if="model.contextLength"
                 class="text-xs text-muted"

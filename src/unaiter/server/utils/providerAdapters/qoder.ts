@@ -2,13 +2,14 @@
  * Qoder OpenAI-compatible API adapter.
  *
  * Chat completions live on `https://api.qoder.com/v1/chat/completions`.
- * Cloud Agents (`/api/v1/cloud`) and Forward (`/api/v1/forward`) are a
- * different product surface (sessions / templates / SSE events) and are not
- * OpenAI-compatible. Operators often paste those roots by mistake — this
- * adapter rewrites known Qoder hosts back to the chat `/v1` root.
+ * Model discovery for Personal Access Tokens (`pt-*`) lives on the Cloud
+ * Agents catalogue (`/api/v1/cloud/models`) — the OpenAI `/v1/models` path
+ * rejects PATs with "invalid apikey". Forward (`/api/v1/forward/models`)
+ * returns the same catalogue.
  *
- * Headers use `User-Agent: Qoder-Cli`, matching the fingerprint qodercli /
- * OmniRoute send on the same gateway.
+ * Operators often paste Cloud/Forward roots as the provider base URL; chat
+ * still rewrites those to the `/v1` root. Headers use `User-Agent: Qoder-Cli`,
+ * matching the fingerprint qodercli / OmniRoute send on the chat gateway.
  */
 
 import type { ProviderAdapter } from './types'
@@ -18,6 +19,7 @@ export const QODER_ADAPTER_ID = 'qoder'
 const QODER_HOST = 'api.qoder.com'
 const QODER_CN_HOST = 'api.qoder.com.cn'
 const QODER_CHAT_PATH = '/v1'
+const QODER_MODELS_PATH = '/api/v1/cloud/models'
 const QODER_USER_AGENT = 'Qoder-Cli'
 
 /** Hostname hint for migration / presets only — not the source of truth. */
@@ -70,9 +72,22 @@ export function resolveQoderBaseUrl(baseUrl: string): string {
   return trimmed
 }
 
-/** Model discovery stays next to chat (`/v1/models`). */
+/**
+ * Model discovery uses the Cloud Agents catalogue.
+ * Accepts `pt-*` PATs and returns short ids such as `dmodel` (DeepSeek-V4-Pro).
+ */
 export function resolveQoderModelsUrl(baseUrl: string): string {
-  return `${resolveQoderBaseUrl(baseUrl)}/models`
+  const chatBase = resolveQoderBaseUrl(baseUrl)
+  try {
+    const url = new URL(chatBase || baseUrl)
+    if (matchQoderBaseUrl(url.origin)) {
+      return `${url.origin}${QODER_MODELS_PATH}`
+    }
+  }
+  catch {
+    // fall through
+  }
+  return `${chatBase}/models`
 }
 
 export function qoderUpstreamHeaders(apiKey: string): Record<string, string> {

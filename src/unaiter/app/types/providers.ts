@@ -17,6 +17,8 @@ export type ModelTask =
 export type ProviderModelPublic = {
   id: string
   modelId: string
+  /** Human-readable label from upstream `/models` when present. */
+  displayName: string | null
   contextLength: number | null
   tasks: ModelTask[]
   /** Verified tool calling; null until Test tools has run. */

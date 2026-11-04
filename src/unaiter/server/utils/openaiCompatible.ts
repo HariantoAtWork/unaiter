@@ -109,6 +109,7 @@ const CONTEXT_LENGTH_KEYS = [
   'context_window',
   'max_model_len',
   'max_position_embeddings',
+  'max_input_tokens',
 ] as const
 
 /** Key names that plausibly mean "context window" on any provider. */
