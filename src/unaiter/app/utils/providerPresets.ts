@@ -90,6 +90,15 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     category: 'Hosted',
   },
   {
+    name: 'Qoder',
+    baseUrl: 'https://api.qoder.com/v1',
+    adapterId: 'qoder',
+    keyUrl: 'https://qoder.com',
+    keyPlaceholder: 'Paste a Qoder API key (not a Cloud Agents /api/v1/cloud base URL).',
+    icon: 'i-lucide-code-xml',
+    category: 'Hosted',
+  },
+  {
     name: 'Moonshot Kimi',
     baseUrl: 'https://api.moonshot.ai/v1',
     keyUrl: 'https://platform.moonshot.ai/console/api-keys',

@@ -1,6 +1,7 @@
 import { basetenAdapter } from './baseten'
 import { defaultAdapter, DEFAULT_ADAPTER_ID } from './default'
 import { opencodeAdapter } from './opencode'
+import { qoderAdapter } from './qoder'
 import type {
   AdapterPublic,
   ProviderAdapter,
@@ -18,6 +19,7 @@ export function registerAdapter(adapter: ProviderAdapter) {
 registerAdapter(defaultAdapter)
 registerAdapter(opencodeAdapter)
 registerAdapter(basetenAdapter)
+registerAdapter(qoderAdapter)
 
 export function getAdapter(id: string): ProviderAdapter | undefined {
   return adapters.get(id)

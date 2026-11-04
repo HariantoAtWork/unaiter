@@ -12,6 +12,13 @@ export {
   resolveOpenCodeModelsUrl,
 } from './opencode'
 export {
+  QODER_ADAPTER_ID,
+  matchQoderBaseUrl,
+  qoderAdapter,
+  resolveQoderBaseUrl,
+  resolveQoderModelsUrl,
+} from './qoder'
+export {
   getAdapter,
   isKnownAdapterId,
   listAdapters,
