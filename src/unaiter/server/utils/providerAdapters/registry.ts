@@ -1,5 +1,6 @@
 import { basetenAdapter } from './baseten'
 import { defaultAdapter, DEFAULT_ADAPTER_ID } from './default'
+import { geminiAdapter } from './gemini'
 import { opencodeAdapter } from './opencode'
 import { qoderAdapter } from './qoder'
 import type {
@@ -20,6 +21,7 @@ registerAdapter(defaultAdapter)
 registerAdapter(opencodeAdapter)
 registerAdapter(basetenAdapter)
 registerAdapter(qoderAdapter)
+registerAdapter(geminiAdapter)
 
 export function getAdapter(id: string): ProviderAdapter | undefined {
   return adapters.get(id)

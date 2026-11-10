@@ -164,7 +164,11 @@ export async function fetchOpenAiCompatibleModels(
   const models: FetchedModel[] = []
 
   for (const item of payload.data || []) {
-    const id = typeof item?.id === 'string' ? item.id.trim() : ''
+    const rawId = typeof item?.id === 'string' ? item.id.trim() : ''
+    if (!rawId) {
+      continue
+    }
+    const id = adapter.normalizeModelId ? adapter.normalizeModelId(rawId) : rawId
     if (!id || seen.has(id)) {
       continue
     }

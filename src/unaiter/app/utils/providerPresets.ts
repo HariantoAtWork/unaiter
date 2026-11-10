@@ -43,6 +43,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     name: 'Google Gemini',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    adapterId: 'gemini',
     keyUrl: 'https://aistudio.google.com/apikey',
     icon: 'i-lucide-globe',
     category: 'Hosted',

@@ -6,6 +6,13 @@ export {
 } from './baseten'
 export { DEFAULT_ADAPTER_ID, defaultAdapter } from './default'
 export {
+  GEMINI_ADAPTER_ID,
+  geminiAdapter,
+  matchGeminiBaseUrl,
+  normalizeGeminiModelId,
+  resolveGeminiBaseUrl,
+} from './gemini'
+export {
   OPENCODE_ADAPTER_ID,
   matchOpenCodeBaseUrl,
   opencodeAdapter,

@@ -26,6 +26,11 @@ export type ProviderAdapter = {
    */
   resolveModelsUrl?: (baseUrl: string) => string
   resolveApiKey: (apiKey: string, modelId: string) => string
+  /**
+   * Optional: rewrite catalogue / upstream model ids (e.g. Gemini strips a
+   * leading `models/` so chat completions accept the bare id).
+   */
+  normalizeModelId?: (modelId: string) => string
   upstreamHeaders: (
     apiKey: string,
     ctx?: { modelId?: string },
