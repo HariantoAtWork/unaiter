@@ -13,6 +13,8 @@ services:
       - TZ=${TZ:-UTC}
       - NITRO_HOST=0.0.0.0
       - NITRO_PORT=3000
+      # Bun.serve idleTimeout seconds (max 255). 0 disables — keeps slow AI/SSE streams alive through quiet gaps.
+      - NITRO_BUN_IDLE_TIMEOUT=${NITRO_BUN_IDLE_TIMEOUT:-0}
       - NUXT_ADMINISTRATOR_USERNAME=${ADMINISTRATOR_USERNAME:-}
       - NUXT_ADMINISTRATOR_PASSWORD=${ADMINISTRATOR_PASSWORD:-}
       - NUXT_DATA_ROOT=/var/lib/unaiter

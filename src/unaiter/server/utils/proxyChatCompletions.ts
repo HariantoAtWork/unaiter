@@ -9,6 +9,7 @@ import {
   reloadProvider,
   resolveRoutedModel,
 } from './routeModel'
+import { upstreamAbortSignal } from './upstreamTimeout'
 
 function isExhaustedStatus(status: number) {
   return status === 429 || status === 402
@@ -80,7 +81,8 @@ export async function proxyChatCompletions(event: H3Event, options: ProxyChatCom
           modelId: routed.upstreamModelId,
         }),
         body: JSON.stringify(upstreamBody),
-        signal: AbortSignal.timeout(120_000),
+        // Default: no deadline (dns01-proxy style). Opt in via UNAITER_UPSTREAM_TIMEOUT_MS.
+        signal: upstreamAbortSignal(),
       })
     }
     catch {

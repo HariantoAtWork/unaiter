@@ -8,6 +8,7 @@ import {
   reloadProvider,
   resolveRoutedModel,
 } from './routeModel'
+import { upstreamAbortSignal } from './upstreamTimeout'
 
 /** Only `/v1/models` is Unaiter-owned (catalogue). Everything else relays. */
 const RESERVED_PATHS = new Set(['models'])
@@ -109,7 +110,8 @@ export async function proxyOpenAiPassthrough(event: H3Event) {
           modelId: routed.upstreamModelId,
         }),
         body: upstreamBody,
-        signal: AbortSignal.timeout(120_000),
+        // Default: no deadline (dns01-proxy style). Opt in via UNAITER_UPSTREAM_TIMEOUT_MS.
+        signal: upstreamAbortSignal(),
       })
     }
     catch {
