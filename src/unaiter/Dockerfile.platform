@@ -16,8 +16,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NITRO_HOST=0.0.0.0
 ENV NITRO_PORT=3000
-# Coding agent CLIs (bun global install, no lifecycle scripts).
-RUN bun add -g @earendil-works/pi-coding-agent opencode-ai
+# OpenCode CLI (bun global install, no lifecycle scripts).
+RUN bun add -g opencode-ai
 COPY --from=build /app/.output .output
 EXPOSE 3000
 CMD ["bun", ".output/server/index.mjs"]
