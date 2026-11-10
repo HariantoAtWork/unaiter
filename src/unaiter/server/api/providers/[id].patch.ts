@@ -6,6 +6,7 @@ type Body = {
   keyMethod?: 'roundabout'
   keys?: string
   validateKeys?: boolean
+  enabled?: boolean
 }
 
 export default defineEventHandler(async (event) => {
@@ -16,6 +17,15 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<Body>(event)
+
+  // Lightweight toggle from the providers list (no form fields).
+  if (
+    typeof body.enabled === 'boolean'
+    && body.name === undefined
+    && body.baseUrl === undefined
+  ) {
+    return setProviderEnabled(id, body.enabled, event)
+  }
 
   return updateProvider(id, {
     name: body.name || '',

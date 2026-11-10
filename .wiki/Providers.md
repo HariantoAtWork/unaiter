@@ -6,7 +6,8 @@ OpenAI-compatible provider registry stored in `dataRoot/providers.json`. Full CR
 
 - Visiting `/providers` while the list is **empty** opens the add modal automatically.
 - **Add provider** (navbar / empty state) opens create mode.
-- Each row has **edit** (pencil) and **delete** (trash). Destructive actions use an in-app confirm dialog; success/errors use toasts (no `alert` / `confirm`).
+- Each row starts with an **API enable switch**. Disabled providers stay in the admin list but their models are omitted from **`GET /v1/models`** and public routing (same as disabling every model). In-app Chat can still target them.
+- Each row has **edit** and **delete** in the actions menu. Destructive actions use an in-app confirm dialog; success/errors use toasts (no `alert` / `confirm`).
 - API keys open in a **right drawer** (hidden by default) via the “N keys” button. Each key is a row (id · hint + validity); reorder with **drag** or **up/down**. No delete control there.
 - Models open in a **right drawer** via the “N models” button (see below).
 - Edit modal updates name / slug / base URL / **key list method**, optionally **appends** more bulk keys, and lists existing keys with **×** to remove.

@@ -51,6 +51,8 @@ export type Provider = {
   slug: string
   baseUrl: string
   type: 'openai-compatible'
+  /** When false, provider models are hidden from GET /v1/models and public routing. */
+  enabled: boolean
   /** Server adapter id (e.g. default, opencode). */
   adapterId: string
   /** How the key list rotates when a key is exhausted. */
@@ -161,6 +163,8 @@ function normalizeProvider(raw: Provider): Provider {
   const models = Array.isArray(raw.models) ? raw.models : []
   return {
     ...raw,
+    // Legacy stores omit the flag; treat missing as enabled.
+    enabled: raw.enabled !== false,
     adapterId: normalizeAdapterId(raw.adapterId, raw.baseUrl),
     keyMethod: normalizeProviderKeyMethod(raw.keyMethod),
     keys: normalizeKeyList(raw.keys, raw.createdAt),
@@ -233,6 +237,7 @@ export function toPublicProvider(provider: Provider): ProviderPublic {
     slug: normalized.slug,
     baseUrl: normalized.baseUrl,
     type: normalized.type,
+    enabled: normalized.enabled,
     adapterId: normalized.adapterId,
     keyMethod: normalized.keyMethod,
     createdAt: normalized.createdAt,
@@ -458,6 +463,7 @@ export async function createProvider(
     slug: uniqueSlug(name, providers, input.slug),
     baseUrl,
     type: 'openai-compatible',
+    enabled: true,
     adapterId,
     keyMethod: DEFAULT_PROVIDER_KEY_METHOD,
     keys,
@@ -577,6 +583,20 @@ export function deleteProvider(id: string, event?: H3Event) {
   return { ok: true as const, id: removed.id }
 }
 
+/** Toggle whether the provider is exposed on the public OpenAI-compatible API. */
+export function setProviderEnabled(
+  id: string,
+  enabled: boolean,
+  event?: H3Event,
+) {
+  const providers = readStore(event)
+  const provider = findProviderOrThrow(providers, id)
+  provider.enabled = enabled
+  provider.updatedAt = new Date().toISOString()
+  writeStore(providers, event)
+  return { provider: toPublicProvider(provider) }
+}
+
 /**
  * Serialise all providers (including secrets) for export.
  */
@@ -589,6 +609,7 @@ export function exportProviders(event?: H3Event): ExportedProviders {
       slug: normalized.slug,
       baseUrl: normalized.baseUrl,
       type: normalized.type,
+      enabled: normalized.enabled,
       adapterId: normalized.adapterId,
       keyMethod: normalized.keyMethod,
       keys: normalized.keys.map(key => ({ ...key })),
@@ -654,6 +675,7 @@ function cloneImportedProvider(source: Partial<Provider>, now: string): Provider
     slug: String(source.slug ?? '').trim() || slugify(String(source.name ?? '')),
     baseUrl,
     type: 'openai-compatible',
+    enabled: source.enabled !== false,
     adapterId: normalizeAdapterId(source.adapterId, baseUrl),
     keyMethod: normalizeProviderKeyMethod(source.keyMethod),
     keys: normalizeKeyList(keys, now),

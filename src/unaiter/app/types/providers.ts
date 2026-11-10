@@ -35,6 +35,8 @@ export type ProviderPublic = {
   name: string
   slug: string
   baseUrl: string
+  /** When false, provider models are hidden from the public API. */
+  enabled: boolean
   /** Server adapter id (e.g. default, opencode). */
   adapterId: string
   keyMethod: ProviderKeyMethod

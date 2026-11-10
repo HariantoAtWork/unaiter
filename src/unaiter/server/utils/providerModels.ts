@@ -118,6 +118,9 @@ export function listEnabledOpenAiModels(event?: H3Event) {
   const data: OpenAiModelListItem[] = []
 
   for (const provider of providers) {
+    if (provider.enabled === false) {
+      continue
+    }
     for (const model of provider.models) {
       if (!model.enabled) {
         continue

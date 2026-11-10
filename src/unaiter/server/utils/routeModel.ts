@@ -54,6 +54,12 @@ export function resolveRoutedModel(
       statusMessage: `Unknown provider slug "${parsed.slug}"`,
     })
   }
+  if (provider.enabled === false && !allowDisabled) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: `Provider "${parsed.slug}" is disabled`,
+    })
+  }
 
   const model = provider.models.find(item => item.modelId === parsed.modelId)
   if (!model) {

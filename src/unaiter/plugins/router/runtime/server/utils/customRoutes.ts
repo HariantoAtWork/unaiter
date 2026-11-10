@@ -99,8 +99,12 @@ function writeCustomRoutes(routes: CustomRoute[], event?: H3Event) {
 export function providerModelEnabledMap(event?: H3Event): Map<string, boolean> {
   const map = new Map<string, boolean>()
   for (const provider of readStore(event)) {
+    const providerEnabled = provider.enabled !== false
     for (const model of provider.models) {
-      map.set(publicModelId(provider.slug, model.modelId), model.enabled)
+      map.set(
+        publicModelId(provider.slug, model.modelId),
+        providerEnabled && model.enabled,
+      )
     }
   }
   return map
@@ -148,10 +152,11 @@ export function findCustomRouteBySlug(slug: string, event?: H3Event) {
 export function listCatalogueModels(event?: H3Event): CatalogueModel[] {
   const models: CatalogueModel[] = []
   for (const provider of readStore(event)) {
+    const providerEnabled = provider.enabled !== false
     for (const model of provider.models) {
       models.push({
         id: publicModelId(provider.slug, model.modelId),
-        enabled: model.enabled,
+        enabled: providerEnabled && model.enabled,
         providerName: provider.name,
         providerSlug: provider.slug,
       })

@@ -11,6 +11,7 @@ const route = useRoute()
 const toast = useToast()
 const confirm = useConfirmDialog()
 const deleting = ref(false)
+const togglingId = ref<string | null>(null)
 const open = ref(false)
 const keysDrawerOpen = ref(false)
 const keysDrawerProviderId = ref<string | null>(null)
@@ -279,6 +280,30 @@ async function confirmDeleteProvider(provider: ProviderPublic) {
   }
 }
 
+async function toggleProviderEnabled(provider: ProviderPublic, enabled: boolean) {
+  const previous = provider.enabled
+  provider.enabled = enabled
+  togglingId.value = provider.id
+  try {
+    await $fetch(`/api/providers/${provider.id}`, {
+      method: 'PATCH',
+      body: { enabled },
+    })
+    await refresh()
+  }
+  catch (err: unknown) {
+    provider.enabled = previous
+    toast.add({
+      title: 'Could not update provider',
+      description: apiErrorMessage(err),
+      color: 'error',
+    })
+  }
+  finally {
+    togglingId.value = null
+  }
+}
+
 async function removeKey(provider: ProviderPublic, keyId: string) {
   const ok = await confirm({
     title: 'Remove API key?',
@@ -382,29 +407,39 @@ async function removeKey(provider: ProviderPublic, keyId: string) {
               class="py-4"
             >
               <div class="flex items-start justify-between gap-4">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <p class="font-medium text-highlighted">
-                      {{ provider.name }}
+                <div class="flex items-start gap-3 min-w-0">
+                  <USwitch
+                    class="mt-1 shrink-0"
+                    :model-value="provider.enabled !== false"
+                    :loading="togglingId === provider.id"
+                    size="sm"
+                    :aria-label="`Toggle ${provider.name} API`"
+                    @update:model-value="(value: boolean) => toggleProviderEnabled(provider, value)"
+                  />
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <p class="font-medium text-highlighted">
+                        {{ provider.name }}
+                      </p>
+                      <UBadge
+                        color="neutral"
+                        variant="subtle"
+                      >
+                        {{ providerKeyMethodLabel(provider.keyMethod) }}
+                      </UBadge>
+                      <UBadge
+                        v-if="adapterLabel(provider.adapterId)"
+                        color="info"
+                        variant="subtle"
+                        icon="i-lucide-plug"
+                      >
+                        {{ adapterLabel(provider.adapterId) }}
+                      </UBadge>
+                    </div>
+                    <p class="text-sm text-muted">
+                      {{ provider.slug }} · {{ provider.baseUrl }}
                     </p>
-                    <UBadge
-                      color="neutral"
-                      variant="subtle"
-                    >
-                      {{ providerKeyMethodLabel(provider.keyMethod) }}
-                    </UBadge>
-                    <UBadge
-                      v-if="adapterLabel(provider.adapterId)"
-                      color="info"
-                      variant="subtle"
-                      icon="i-lucide-plug"
-                    >
-                      {{ adapterLabel(provider.adapterId) }}
-                    </UBadge>
                   </div>
-                  <p class="text-sm text-muted">
-                    {{ provider.slug }} · {{ provider.baseUrl }}
-                  </p>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                   <UButton
