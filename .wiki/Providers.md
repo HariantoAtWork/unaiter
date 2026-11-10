@@ -56,8 +56,8 @@ Drawer actions:
 |--------|-----------|
 | Retrieve from `/models` | `GET {baseUrl}/models` with a provider key; merges new ids (`source: fetched`) |
 | Add in bulk | One model id per line; duplicates skipped (`source: manual`) |
-| Test models | Probes each API format (see task hats below); labels passing hats on the model; **enabled** if any format works, **disabled** if none |
-| Test tools | Background job (same SSE queue): forces a `ping` tool call via `chat/completions`; sets `tools: true/false` without changing enablement |
+| Test models | Probes each API format (see task hats below); labels passing hats on the model; **enabled** if any format works, **disabled** if none. Queue order: **enabled models first**, then the rest |
+| Test tools | Background job (same SSE queue): forces a `ping` tool call via `chat/completions`; sets `tools: true/false` without changing enablement. Same queue order: **enabled first** |
 | Enable toggle | Per-row switch |
 | Copy | Copies routable id `{providerSlug}/{modelId}` to the clipboard |
 | Filter | All / Enabled / Disabled tabs + search by model id |

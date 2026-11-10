@@ -159,6 +159,8 @@ export function enqueueProviderModelTest(
   const targets = modelRowIds?.length
     ? provider.models.filter(item => modelRowIds.includes(item.id))
     : [...provider.models]
+  // Enabled catalogue models first, then the rest (stable within each group).
+  targets.sort((a, b) => Number(b.enabled) - Number(a.enabled))
 
   if (targets.length === 0) {
     throw createError({
