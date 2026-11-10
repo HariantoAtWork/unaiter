@@ -25,12 +25,22 @@ export type ProviderAdapter = {
    * Defaults to `<resolveBaseUrl>/models`.
    */
   resolveModelsUrl?: (baseUrl: string) => string
+  /**
+   * Optional: chat completions URL. Defaults to
+   * `<resolveBaseUrl>/chat/completions` (no trailing slash).
+   */
+  resolveChatCompletionsUrl?: (baseUrl: string) => string
   resolveApiKey: (apiKey: string, modelId: string) => string
   /**
    * Optional: rewrite catalogue / upstream model ids (e.g. Gemini strips a
    * leading `models/` so chat completions accept the bare id).
    */
   normalizeModelId?: (modelId: string) => string
+  /**
+   * Optional: rewrite `/models` JSON before the default OpenAI `data[]` parse
+   * (e.g. Rewind returns `{ models: [...] }` instead of `{ data: [...] }`).
+   */
+  normalizeModelsPayload?: (payload: unknown) => unknown
   upstreamHeaders: (
     apiKey: string,
     ctx?: { modelId?: string },

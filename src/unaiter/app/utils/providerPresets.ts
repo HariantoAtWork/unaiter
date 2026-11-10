@@ -186,6 +186,15 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     icon: 'i-lucide-box-select',
     category: 'Free tier',
   },
+  {
+    name: 'Rewind.ai',
+    baseUrl: 'https://api.rewind.ai/v1',
+    adapterId: 'rewind',
+    keyUrl: 'https://rewind.ai/api/',
+    keyPlaceholder: 'sk-rewind-…',
+    icon: 'i-lucide-rewind',
+    category: 'Free tier',
+  },
   // ----------------------------------------------------------------- Local
   {
     name: 'Ollama',

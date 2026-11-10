@@ -26,6 +26,14 @@ export {
   resolveQoderModelsUrl,
 } from './qoder'
 export {
+  REWIND_ADAPTER_ID,
+  matchRewindBaseUrl,
+  normalizeRewindModelsPayload,
+  resolveRewindBaseUrl,
+  resolveRewindChatCompletionsUrl,
+  rewindAdapter,
+} from './rewind'
+export {
   getAdapter,
   isKnownAdapterId,
   listAdapters,

@@ -97,7 +97,7 @@ More methods can be added later. Exhaustion is applied via `POST /api/providers/
 | Name | Required |
 | Slug | Auto from name; editable |
 | Base URL | OpenAI-compatible root, e.g. `https://api.openai.com/v1` |
-| Adapter | Opt-in specialist (`default`, `opencode`, `baseten`, `qoder`). Rewrites URLs / headers / bodies for quirky gateways. Base URL never auto-selects an adapter |
+| Adapter | Opt-in specialist (`default`, `opencode`, `baseten`, `qoder`, `gemini`, `rewind`). Rewrites URLs / headers / bodies for quirky gateways. Base URL never auto-selects an adapter |
 | Key list method | Edit only. Default Roundabout |
 | Bulk keys | Create: required. Edit: optional append. One entry per line (see below) |
 | Auto-check keys | Optional: `GET {baseUrl}/models` with `Authorization: Bearer …`; only valid keys saved |
@@ -109,6 +109,8 @@ More methods can be added later. Exhaustion is applied via `POST /api/providers/
 | `opencode` | CLI fingerprint + free-tier body; models on `/inference/v1/models` |
 | `baseten` | Normalise SSE / headers for Cursor |
 | `qoder` | Rewrite Cloud/Forward roots to `https://api.qoder.com/v1`; send `User-Agent: Qoder-Cli` |
+| `gemini` | Strip `models/` catalogue prefix; Gemini OpenAI-compat root |
+| `rewind` | Remap `{ models: […] }` catalogue to OpenAI `{ data: […] }`; chat URL keeps trailing slash |
 
 Add new adapters under `server/utils/providerAdapters/` and register them in `registry.ts` (see `plugins/_provider-template/README.md`).
 

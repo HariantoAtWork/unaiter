@@ -72,7 +72,9 @@ export async function proxyChatCompletions(event: H3Event, options: ProxyChatCom
     const forcedStream = patched.forcedStream
 
     const baseUrl = adapter.resolveBaseUrl(provider.baseUrl)
-    const upstreamUrl = `${baseUrl}/chat/completions`
+    const upstreamUrl = adapter.resolveChatCompletionsUrl
+      ? adapter.resolveChatCompletionsUrl(provider.baseUrl)
+      : `${baseUrl}/chat/completions`
     let response: Response
     try {
       response = await fetch(upstreamUrl, {

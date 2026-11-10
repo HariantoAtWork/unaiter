@@ -23,6 +23,24 @@ function modelsUrl(baseUrl: string, options?: AdapterAwareOptions) {
   return `${adapter.resolveBaseUrl(baseUrl)}/models`
 }
 
+function modelsPayload(payload: unknown, options?: AdapterAwareOptions, baseUrl = '') {
+  const adapter = resolveFor(baseUrl, options)
+  if (adapter.normalizeModelsPayload) {
+    return adapter.normalizeModelsPayload(payload)
+  }
+  return payload
+}
+
+function modelsDataList(payload: unknown): Array<Record<string, unknown>> {
+  if (!payload || typeof payload !== 'object') {
+    return []
+  }
+  const data = (payload as { data?: unknown }).data
+  return Array.isArray(data)
+    ? data.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    : []
+}
+
 export async function validateOpenAiCompatibleKey(
   baseUrl: string,
   apiKey: string,
@@ -70,8 +88,8 @@ export async function probeOpenAiCompatibleBaseUrl(
     let modelCount: number | null = null
     if (response.ok) {
       try {
-        const payload = await response.json() as { data?: Array<{ id?: string }> }
-        modelCount = Array.isArray(payload.data) ? payload.data.length : null
+        const payload = modelsPayload(await response.json(), options, baseUrl)
+        modelCount = modelsDataList(payload).length
       }
       catch {
         modelCount = null
@@ -156,14 +174,11 @@ export async function fetchOpenAiCompatibleModels(
     })
   }
 
-  const payload = await response.json() as {
-    data?: Array<Record<string, unknown>>
-  }
-
+  const payload = modelsPayload(await response.json(), options, baseUrl)
   const seen = new Set<string>()
   const models: FetchedModel[] = []
 
-  for (const item of payload.data || []) {
+  for (const item of modelsDataList(payload)) {
     const rawId = typeof item?.id === 'string' ? item.id.trim() : ''
     if (!rawId) {
       continue

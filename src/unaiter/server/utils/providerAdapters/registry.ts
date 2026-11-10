@@ -3,6 +3,7 @@ import { defaultAdapter, DEFAULT_ADAPTER_ID } from './default'
 import { geminiAdapter } from './gemini'
 import { opencodeAdapter } from './opencode'
 import { qoderAdapter } from './qoder'
+import { rewindAdapter } from './rewind'
 import type {
   AdapterPublic,
   ProviderAdapter,
@@ -22,6 +23,7 @@ registerAdapter(opencodeAdapter)
 registerAdapter(basetenAdapter)
 registerAdapter(qoderAdapter)
 registerAdapter(geminiAdapter)
+registerAdapter(rewindAdapter)
 
 export function getAdapter(id: string): ProviderAdapter | undefined {
   return adapters.get(id)
