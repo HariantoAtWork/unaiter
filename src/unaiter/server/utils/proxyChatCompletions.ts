@@ -114,7 +114,19 @@ export async function proxyChatCompletions(event: H3Event, options: ProxyChatCom
 
     const { body: streamBody } = applyAdapterClientResponse(event, adapter, response)
     if (!streamBody) {
-      return await response.text()
+      const text = await response.text()
+      // Empty error bodies are useless to clients and looked like sticky probe failures.
+      if (!text && response.status >= 400) {
+        setHeader(event, 'Content-Type', 'application/json; charset=utf-8')
+        return {
+          error: {
+            message: `Upstream provider "${provider.slug}" returned ${response.status} with an empty body`,
+            type: 'upstream_error',
+            code: response.status,
+          },
+        }
+      }
+      return text
     }
 
     return sendStream(event, streamBody)

@@ -131,8 +131,11 @@ export function listEnabledOpenAiModels(event?: H3Event) {
       }
       seen.add(id)
       const createdMs = Date.parse(model.createdAt)
+      // Never advertise unverified upstream `tools` — only the tools probe may set it.
+      const providerMeta = { ...(model.providerMeta ?? {}) }
+      delete providerMeta.tools
       data.push({
-        ...(model.providerMeta ?? {}),
+        ...providerMeta,
         id,
         object: 'model',
         created: Number.isFinite(createdMs) ? Math.floor(createdMs / 1000) : 0,

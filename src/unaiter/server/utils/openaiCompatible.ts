@@ -291,35 +291,66 @@ export async function testOpenAiCompatibleModel(
   return result.ok
 }
 
-const TOOLS_PROBE_NAME = 'ping'
+const TOOLS_PROBE_NAME = 'get_weather'
 
-function toolsProbeBody(modelId: string): Record<string, unknown> {
+type ToolsProbeToolChoice = 'required' | 'auto'
+
+/** Outcome of a single tools HTTP probe. */
+type ToolsProbeAttempt = 'yes' | 'no' | 'error'
+
+export type ModelToolsTestResult = {
+  /**
+   * `true`/`false` when upstream answered HTTP 200 (conclusive).
+   * `null` on transport/upstream errors — callers must not persist `tools: false`.
+   */
+  supported: boolean | null
+}
+
+/** OpenAI-style tools probe body. Prefer `tool_choice: "required"`. */
+export function toolsProbeBody(
+  modelId: string,
+  toolChoice: ToolsProbeToolChoice = 'required',
+): Record<string, unknown> {
   return {
     model: modelId,
-    max_tokens: 64,
+    temperature: 0,
+    max_tokens: 256,
     messages: [{
       role: 'user',
-      content: 'Call the ping tool with message hi. Do not reply with plain text.',
+      content: 'What is the weather in Amsterdam? You must call get_weather.',
     }],
     tools: [{
       type: 'function',
       function: {
         name: TOOLS_PROBE_NAME,
-        description: 'Unaiter tool-support probe',
+        description: 'Get current weather for a city',
         parameters: {
           type: 'object',
           properties: {
-            message: { type: 'string' },
+            city: { type: 'string' },
           },
-          required: ['message'],
+          required: ['city'],
         },
       },
     }],
-    tool_choice: {
-      type: 'function',
-      function: { name: TOOLS_PROBE_NAME },
-    },
+    tool_choice: toolChoice,
   }
+}
+
+function toolCallHasFunctionName(call: unknown): boolean {
+  if (!call || typeof call !== 'object') {
+    return false
+  }
+  const record = call as Record<string, unknown>
+  if (typeof record.name === 'string' && record.name.trim()) {
+    return true
+  }
+  const fn = record.function
+  if (fn && typeof fn === 'object') {
+    const name = (fn as Record<string, unknown>).name
+    return typeof name === 'string' && Boolean(name.trim())
+  }
+  return false
 }
 
 function messageHasToolCall(message: unknown): boolean {
@@ -327,16 +358,18 @@ function messageHasToolCall(message: unknown): boolean {
     return false
   }
   const record = message as Record<string, unknown>
-  if (Array.isArray(record.tool_calls) && record.tool_calls.length > 0) {
+  if (Array.isArray(record.tool_calls) && record.tool_calls.some(toolCallHasFunctionName)) {
     return true
   }
   if (record.function_call && typeof record.function_call === 'object') {
-    return true
+    const name = (record.function_call as Record<string, unknown>).name
+    return typeof name === 'string' && Boolean(name.trim())
   }
   return false
 }
 
-function completionHasToolCalls(payload: unknown): boolean {
+/** True when a chat completion payload includes structured tool calls. */
+export function completionHasToolCalls(payload: unknown): boolean {
   if (!payload || typeof payload !== 'object') {
     return false
   }
@@ -352,6 +385,7 @@ function completionHasToolCalls(payload: unknown): boolean {
     if (messageHasToolCall(row.message) || messageHasToolCall(row.delta)) {
       return true
     }
+    // Secondary signal some gateways set without a fully-formed message yet.
     if (row.finish_reason === 'tool_calls' || row.finish_reason === 'function_call') {
       return true
     }
@@ -382,22 +416,19 @@ function sseHasToolCalls(text: string): boolean {
   return false
 }
 
-/**
- * Probe whether a model accepts tools and returns a tool call when forced.
- * Does not flip enablement — only reports capability.
- */
-export async function testOpenAiCompatibleModelTools(
+async function probeToolsOnce(
   baseUrl: string,
   apiKey: string,
   modelId: string,
+  toolChoice: ToolsProbeToolChoice,
   signal?: AbortSignal,
   options?: AdapterAwareOptions,
-): Promise<boolean> {
+): Promise<ToolsProbeAttempt> {
   const adapter = resolveFor(baseUrl, options)
   const url = `${adapter.resolveBaseUrl(baseUrl)}/chat/completions`
   const key = adapter.resolveApiKey(apiKey, modelId)
-  const prepared = adapter.prepareChatBody(toolsProbeBody(modelId))
-  const timeout = AbortSignal.timeout(45_000)
+  const prepared = adapter.prepareChatBody(toolsProbeBody(modelId, toolChoice))
+  const timeout = AbortSignal.timeout(60_000)
   const combined = signal ? AbortSignal.any([timeout, signal]) : timeout
 
   try {
@@ -407,26 +438,58 @@ export async function testOpenAiCompatibleModelTools(
       body: JSON.stringify(prepared.body),
       signal: combined,
     })
+    // Non-OK is inconclusive — never treat as "model cannot use tools".
     if (!response.ok) {
-      return false
+      return 'error'
     }
 
     const contentType = response.headers.get('content-type') || ''
     if (prepared.forcedStream || contentType.includes('text/event-stream')) {
-      return sseHasToolCalls(await response.text())
+      return sseHasToolCalls(await response.text()) ? 'yes' : 'no'
     }
 
     try {
-      return completionHasToolCalls(await response.json())
+      return completionHasToolCalls(await response.json()) ? 'yes' : 'no'
     }
     catch {
-      return false
+      return 'error'
     }
   }
   catch (err) {
     if (signal?.aborted) {
       throw err
     }
-    return false
+    return 'error'
   }
+}
+
+/**
+ * Probe whether a model returns structured OpenAI tool calls.
+ * Prefers `tool_choice: "required"`, then sanity-checks `"auto"`.
+ * Does not flip enablement — only reports capability.
+ */
+export async function testOpenAiCompatibleModelTools(
+  baseUrl: string,
+  apiKey: string,
+  modelId: string,
+  signal?: AbortSignal,
+  options?: AdapterAwareOptions,
+): Promise<ModelToolsTestResult> {
+  const required = await probeToolsOnce(baseUrl, apiKey, modelId, 'required', signal, options)
+  if (required === 'yes') {
+    return { supported: true }
+  }
+
+  // Some backends ignore `"required"` but still emit tool_calls under `"auto"`.
+  const auto = await probeToolsOnce(baseUrl, apiKey, modelId, 'auto', signal, options)
+  if (auto === 'yes') {
+    return { supported: true }
+  }
+
+  // Conclusive negative only after at least one HTTP 200 without tool_calls.
+  if (required === 'no' || auto === 'no') {
+    return { supported: false }
+  }
+
+  return { supported: null }
 }

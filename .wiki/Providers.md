@@ -57,7 +57,7 @@ Drawer actions:
 | Retrieve from `/models` | `GET {baseUrl}/models` with a provider key; merges new ids (`source: fetched`) |
 | Add in bulk | One model id per line; duplicates skipped (`source: manual`) |
 | Test models | Probes each API format (see task hats below); labels passing hats on the model; **enabled** if any format works, **disabled** if none. Queue order: **enabled models first**, then the rest |
-| Test tools | Background job (same SSE queue): forces a `ping` tool call via `chat/completions`; sets `tools: true/false` without changing enablement. Same queue order: **enabled first** |
+| Test tools | Background job (same SSE queue): OpenAI tools probe via `chat/completions` (`tool_choice: "required"`, then `"auto"`); sets `tools: true/false` only on a conclusive HTTP 200. Transport/upstream errors leave the previous value. Same queue order: **enabled first** |
 | Enable toggle | Per-row switch |
 | Copy | Copies routable id `{providerSlug}/{modelId}` to the clipboard |
 | Filter | All / Enabled / Disabled tabs + search by model id |
@@ -78,7 +78,7 @@ Verified hats are stored on each model as `tasks` and shown in the drawer. Probe
 
 ### Tool support
 
-**Test tools** sends a minimal OpenAI tools payload with `tool_choice` forced to a `ping` function. A model is labelled `tools` only when the upstream returns a tool call (JSON or SSE). Failures set `tools: false`; enablement is left alone.
+**Test tools** sends an OpenAI-style tools payload (`get_weather`, `tool_choice: "required"`, then a sanity `"auto"` pass). A model is labelled `tools: true` only when HTTP 200 includes structured `message.tool_calls` with a function name (JSON or SSE; `finish_reason: tool_calls` also counts). A conclusive HTTP 200 without tool calls sets `tools: false`. Transport errors, non-OK upstream status, and parse failures do **not** overwrite the stored flag (avoids sticky false negatives when the proxy or backend is briefly unreachable). Omitting `tools` on the provider’s `/models` list is ignored — Unaiter never derives capability from that metadata alone. Enablement is left alone.
 
 ## Key list method
 

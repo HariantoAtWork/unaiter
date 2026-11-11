@@ -271,15 +271,19 @@ async function runJob(job: InternalJob) {
       const apiKey = firstUsableKey(providerForKey)
       let ok = false
       let tasks: ModelTask[] = []
+      /** Tools probe only: null means transport/upstream error — do not persist false. */
+      let toolsSupported: boolean | null = null
       try {
         if (job.kind === 'tools') {
-          ok = await testOpenAiCompatibleModelTools(
+          const toolsResult = await testOpenAiCompatibleModelTools(
             providerForKey.baseUrl,
             apiKey,
             target.modelId,
             job.abortController.signal,
             { adapterId: providerForKey.adapterId },
           )
+          toolsSupported = toolsResult.supported
+          ok = toolsSupported === true
         }
         else {
           const result = await testOpenAiCompatibleModelFormats(
@@ -303,6 +307,7 @@ async function runJob(job: InternalJob) {
         }
         ok = false
         tasks = []
+        toolsSupported = null
       }
 
       if (job.cancelRequested || job.abortController.signal.aborted) {
@@ -320,8 +325,11 @@ async function runJob(job: InternalJob) {
       job.tested += 1
 
       if (job.kind === 'tools') {
-        model.tools = ok
-        if (ok) {
+        // Only write when the probe got a conclusive HTTP 200 answer.
+        if (toolsSupported !== null) {
+          model.tools = toolsSupported
+        }
+        if (toolsSupported === true) {
           job.passed += 1
         }
         else {
